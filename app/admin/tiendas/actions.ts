@@ -1,0 +1,140 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getPerfil } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+
+// Convierte un nombre en slug para el link público (/<slug>/...).
+function aSlug(texto: string) {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // quita acentos
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40);
+}
+
+// Solo el superadmin puede operar aquí.
+async function exigirSuperadmin() {
+  const perfil = await getPerfil();
+  if (perfil?.rol !== "superadmin") {
+    throw new Error("No autorizado");
+  }
+}
+
+export async function crearTienda(formData: FormData) {
+  await exigirSuperadmin();
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const plan = String(formData.get("plan") ?? "basico");
+  const sembrar = formData.get("sembrar") === "on";
+  if (!nombre) throw new Error("El nombre es obligatorio");
+
+  const slugBase = aSlug(nombre) || "tienda";
+  const supabase = await createClient();
+
+  // Garantiza un slug único agregando sufijo si ya existe.
+  let slug = slugBase;
+  for (let i = 2; i < 50; i++) {
+    const { data } = await supabase
+      .from("tiendas")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!data) break;
+    slug = `${slugBase}-${i}`;
+  }
+
+  const { data: tienda, error } = await supabase
+    .from("tiendas")
+    .insert({ nombre, slug, plan_clave: plan })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  // Siembra líneas + campos de ejemplo (opcional).
+  if (sembrar && tienda) {
+    await supabase.rpc("sembrar_lineas_demo", { p_tienda: tienda.id });
+  }
+
+  revalidatePath("/admin/tiendas");
+}
+
+export async function cambiarPlan(formData: FormData) {
+  await exigirSuperadmin();
+  const id = String(formData.get("tienda_id"));
+  const plan = String(formData.get("plan"));
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tiendas")
+    .update({ plan_clave: plan })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/tiendas");
+}
+
+export async function alternarActiva(formData: FormData) {
+  await exigirSuperadmin();
+  const id = String(formData.get("tienda_id"));
+  const activa = formData.get("activa") === "true";
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tiendas")
+    .update({ activa: !activa })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/tiendas");
+}
+
+// Genera una contraseña temporal legible para compartir.
+function generarPassword() {
+  const base = Math.random().toString(36).slice(2, 8);
+  return `Nido-${base}${Math.floor(Math.random() * 90 + 10)}`;
+}
+
+export type EstadoInvitacion = { ok: boolean; mensaje: string } | null;
+
+// Da de alta a un admin/delegado de tienda. Dos modos:
+//  - "password": crea la cuenta con una contraseña temporal (se muestra para
+//                compartir). No depende de correo.
+//  - "correo":   envía una invitación por email (requiere SMTP configurado).
+// La metadata dispara el trigger que crea el perfil ligado a la tienda.
+export async function gestionarInvitacion(
+  _prev: EstadoInvitacion,
+  formData: FormData,
+): Promise<EstadoInvitacion> {
+  await exigirSuperadmin();
+  const tienda_id = String(formData.get("tienda_id"));
+  const email = String(formData.get("email") ?? "").trim();
+  const nombre =
+    String(formData.get("nombre") ?? "").trim() || email.split("@")[0];
+  const rol = String(formData.get("rol") ?? "admin");
+  const modo = String(formData.get("modo") ?? "password");
+  if (!email) return { ok: false, mensaje: "El correo es obligatorio." };
+
+  const admin = createServiceClient();
+
+  if (modo === "correo") {
+    const { error } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { rol, nombre, tienda_id },
+    });
+    if (error) return { ok: false, mensaje: error.message };
+    revalidatePath("/admin/tiendas");
+    return { ok: true, mensaje: `Invitación enviada a ${email}.` };
+  }
+
+  const password = generarPassword();
+  const { error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { rol, nombre, tienda_id },
+  });
+  if (error) return { ok: false, mensaje: error.message };
+  revalidatePath("/admin/tiendas");
+  return {
+    ok: true,
+    mensaje: `Cuenta creada para ${email}. Contraseña temporal: ${password}`,
+  };
+}

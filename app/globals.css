@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   MAMIELINA — Identidad visual (brand board)
+   Paleta cálida/juguetona + tipografías redondas.
+   En Tailwind v4 los tokens de @theme generan utilidades:
+     --color-miel  -> bg-miel / text-miel / border-miel ...
+     --font-titulo -> font-titulo ...
+   ===================================================================== */
+@theme {
+  /* ---- Paleta ---- */
+  --color-crema: #fcf6e8; /* lienzo / fondo */
+  --color-miel: #f4d58d; /* base / fondos suaves */
+  --color-miel-borde: #ead9ae; /* bordes / divisores */
+  --color-verde-mielina: #a6c972; /* acentos · estado Disponible */
+  --color-durazno: #eca088; /* títulos · estado Apartada */
+  --color-sol: #f4c13e; /* precios · estado En firme */
+  --color-cacao: #9c8478; /* texto secundario · estado Agotada */
+  --color-texto: #5a4a3f; /* texto principal */
+  --color-coral: #e1855f; /* títulos de sección */
+
+  /* ---- Tipografías (variables inyectadas por next/font en layout) ---- */
+  --font-titulo: var(--font-fredoka); /* títulos */
+  --font-producto: var(--font-baloo); /* nombres de producto */
+  --font-cuerpo: var(--font-nunito); /* cuerpo */
+  --font-mano: var(--font-caveat); /* detalles a mano */
+
+  /* ---- Radio suave de marca ---- */
+  --radius-marca: 16px;
+}
+
+:root {
+  --background: var(--color-crema);
+  --foreground: var(--color-texto);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-cuerpo), system-ui, sans-serif;
+}
+
+/* Títulos por defecto con la tipografía redonda de marca */
+h1,
+h2,
+h3 {
+  font-family: var(--font-titulo), system-ui, sans-serif;
+}
