@@ -51,7 +51,7 @@ export default async function CatalogoPublico({
         </div>
         <div className="leading-tight">
           <p className="font-producto text-base font-bold text-texto">{tienda.nombre}</p>
-          <p className="font-mano text-sm text-cacao">Los Nidos de Mamielina</p>
+          <p className="font-mano text-sm text-cacao">miel y protección</p>
         </div>
       </header>
 

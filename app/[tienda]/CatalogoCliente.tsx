@@ -383,13 +383,12 @@ export function CatalogoCliente({
         ))}
       </div>
 
-      {/* Para quién: Niño / Niña / Unisex */}
+      {/* Para quién: Niño / Niña */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-cacao">Para:</span>
         <Chip activo={generoSel === ""} onClick={() => setGeneroSel("")}>Todos</Chip>
         <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
         <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
-        <Chip activo={generoSel === "unisex"} onClick={() => setGeneroSel(generoSel === "unisex" ? "" : "unisex")}>🧒 Unisex</Chip>
       </div>
 
       {camposFiltro.length > 0 && (
