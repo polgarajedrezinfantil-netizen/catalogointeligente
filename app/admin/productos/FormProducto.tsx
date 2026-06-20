@@ -143,6 +143,23 @@ export function FormProducto({
         />
       </label>
 
+      <label className="text-sm font-semibold text-cacao">
+        Precio de oferta (opcional)
+        <input
+          name="precio_oferta"
+          type="number"
+          step="0.01"
+          min={0}
+          defaultValue={producto?.precio_oferta ?? ""}
+          placeholder="Déjalo vacío si no hay oferta"
+          className={`mt-1 w-full ${inputCls}`}
+        />
+        <span className="mt-1 block text-xs font-normal text-cacao">
+          Debe ser menor al precio de venta. Se muestra tachando el precio
+          original.
+        </span>
+      </label>
+
       <div className="sm:col-span-2 text-sm text-cacao">
         Ganancia: <strong className="text-[#3f5a1c]">${ganancia.toFixed(2)}</strong>{" "}
         · Margen: <strong>{margen}%</strong>

@@ -4,10 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { urlFoto } from "@/lib/fotos";
 import type { Campo, Linea, Nido, Producto, EstadoProducto } from "@/lib/tipos";
 import { FormProducto } from "./FormProducto";
+import { OrdenarProductos } from "./OrdenarProductos";
 import {
   crearProducto,
   actualizarProducto,
   borrarProducto,
+  duplicarProducto,
+  alternarOculto,
   confirmarApartado,
   venderProducto,
   liberarApartado,
@@ -47,7 +50,7 @@ export default async function ProductosPage() {
     supabase.from("lineas_de_venta").select("*").eq("tienda_id", t).eq("archivada", false).order("orden"),
     supabase.from("campos_linea").select("*").eq("tienda_id", t).order("orden"),
     supabase.from("nidos").select("*").eq("tienda_id", t).order("orden"),
-    supabase.from("productos").select("*").eq("tienda_id", t).order("creado", { ascending: false }),
+    supabase.from("productos").select("*").eq("tienda_id", t).order("orden", { ascending: true }).order("creado", { ascending: false }),
     supabase.from("tiendas").select("ganancia_default, etiqueta_precio").eq("id", t).single(),
     supabase.from("lista_espera").select("producto_id, celular, posicion").eq("tienda_id", t).order("posicion"),
   ]);
@@ -93,6 +96,26 @@ export default async function ProductosPage() {
         </div>
       </details>
 
+      {/* Ordenar el catálogo */}
+      {productos.length > 1 && (
+        <details className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4">
+          <summary className="cursor-pointer font-titulo text-lg text-coral">
+            ↕️ Ordenar catálogo
+          </summary>
+          <p className="mb-3 mt-2 text-sm text-cacao">
+            Arrastra (o usa ↑↓) para cambiar el orden en que aparecen las prendas
+            en el catálogo. Luego toca <strong>Guardar orden</strong>.
+          </p>
+          <OrdenarProductos
+            inicial={productos.map((p) => ({
+              id: p.id,
+              nombre: p.nombre,
+              foto: p.fotos[0] ?? null,
+            }))}
+          />
+        </details>
+      )}
+
       {/* Lista */}
       <div className="space-y-3">
         {productos.length === 0 && (
@@ -125,6 +148,16 @@ export default async function ProductosPage() {
                     <span className={`rounded-full px-2 py-0.5 text-xs ${et.cls}`}>
                       {et.txt}
                     </span>
+                    {p.oculto && (
+                      <span className="rounded-full bg-cacao/20 px-2 py-0.5 text-xs text-cacao">
+                        🚫 Oculto
+                      </span>
+                    )}
+                    {p.precio_oferta != null && (
+                      <span className="rounded-full bg-coral/20 px-2 py-0.5 text-xs font-bold text-coral">
+                        🏷️ Oferta
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-cacao">
                     {simbolo}
@@ -191,6 +224,18 @@ export default async function ProductosPage() {
                     {p.estado !== "agotada" && (
                       <FormBtn action={agotarProducto} id={p.id} label="Agotada" />
                     )}
+                  </div>
+
+                  {/* Gestión: duplicar / ocultar */}
+                  <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-miel-borde pt-2">
+                    <FormBtn action={duplicarProducto} id={p.id} label="📑 Duplicar" />
+                    <form action={alternarOculto}>
+                      <input type="hidden" name="producto_id" value={p.id} />
+                      <input type="hidden" name="oculto" value={String(p.oculto)} />
+                      <button className="rounded-full border border-miel-borde px-2.5 py-1 text-xs font-semibold text-cacao">
+                        {p.oculto ? "👁️ Mostrar" : "🚫 Ocultar"}
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>

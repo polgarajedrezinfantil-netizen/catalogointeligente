@@ -409,11 +409,21 @@ export function CatalogoCliente({
                   {p.estado === "disponible" && p.cantidad === 1 && (
                     <span className="rounded-full bg-durazno px-2 py-0.5 text-[10px] font-bold text-white">🔥 Último</span>
                   )}
+                  {p.precio_oferta != null && (
+                    <span className="rounded-full bg-coral px-2 py-0.5 text-[10px] font-bold text-white">🏷️ Oferta</span>
+                  )}
                 </div>
               </div>
               <div className="px-2.5 py-2">
                 <p className="truncate text-xs font-semibold text-texto">{p.nombre}</p>
-                <p className="font-producto text-base font-bold text-[#7a5414]">{tienda.simbolo}{p.precio}</p>
+                {p.precio_oferta != null ? (
+                  <p className="font-producto text-base font-bold text-coral">
+                    {tienda.simbolo}{p.precio_oferta}
+                    <span className="ml-1 text-xs font-semibold text-cacao line-through">{tienda.simbolo}{p.precio}</span>
+                  </p>
+                ) : (
+                  <p className="font-producto text-base font-bold text-[#7a5414]">{tienda.simbolo}{p.precio}</p>
+                )}
               </div>
             </button>
             <button
@@ -472,6 +482,11 @@ function esNuevo(p: Producto): boolean {
   return Date.now() - new Date(p.creado).getTime() < 14 * 24 * 60 * 60 * 1000;
 }
 
+// Precio que se cobra: la oferta si existe, si no el precio normal.
+function precioEfectivo(p: Producto): number {
+  return p.precio_oferta != null ? p.precio_oferta : p.precio;
+}
+
 // Carrito: junta los productos que el cliente apartó. Quitar = liberar.
 function Carrito({
   items,
@@ -487,7 +502,7 @@ function Carrito({
   onAbrirProducto: (id: string) => void;
 }) {
   const supabase = createClient();
-  const total = items.reduce((s, p) => s + (p.precio || 0), 0);
+  const total = items.reduce((s, p) => s + (precioEfectivo(p) || 0), 0);
   const cel = datosClienteLocal(tienda.id)?.celular ?? "";
 
   // Cupón de descuento.
@@ -529,7 +544,7 @@ function Carrito({
     tienda.whatsapp && items.length > 0
       ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
           "¡Hola! Quiero estos productos que aparté:\n" +
-            items.map((p) => `• ${p.nombre} — ${tienda.simbolo}${p.precio}`).join("\n") +
+            items.map((p) => `• ${p.nombre} — ${tienda.simbolo}${precioEfectivo(p)}`).join("\n") +
             (cupon
               ? `\nSubtotal: ${tienda.simbolo}${total}\nCupón ${cupon.palabra} (-${cupon.porcentaje}%): -${tienda.simbolo}${descuento}`
               : "") +
@@ -576,7 +591,14 @@ function Carrito({
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-producto font-bold text-texto">{p.nombre}</p>
-                  <p className="font-bold text-[#7a5414]">{tienda.simbolo}{p.precio}</p>
+                  {p.precio_oferta != null ? (
+                    <p className="font-bold text-coral">
+                      {tienda.simbolo}{p.precio_oferta}
+                      <span className="ml-1 text-xs font-normal text-cacao line-through">{tienda.simbolo}{p.precio}</span>
+                    </p>
+                  ) : (
+                    <p className="font-bold text-[#7a5414]">{tienda.simbolo}{p.precio}</p>
+                  )}
                   {p.estado === "apartada" && p.hold_expira && (
                     <span className="text-xs">
                       <Reloj expira={p.hold_expira} />
@@ -800,7 +822,7 @@ function DetalleProducto({
   }
 
   const waLink = tienda.whatsapp
-    ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`¡Hola! Aparté "${producto.nombre}" (${tienda.simbolo}${producto.precio}). Mi número: ${celular}`)}`
+    ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`¡Hola! Aparté "${producto.nombre}" (${tienda.simbolo}${precioEfectivo(producto)}). Mi número: ${celular}`)}`
     : null;
 
   return (
@@ -839,7 +861,14 @@ function DetalleProducto({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-producto text-lg font-bold text-[#7a5414]">{tienda.simbolo}{producto.precio}</p>
+            {producto.precio_oferta != null ? (
+              <p className="font-producto text-lg font-bold text-coral">
+                {tienda.simbolo}{producto.precio_oferta}
+                <span className="ml-1.5 text-sm font-semibold text-cacao line-through">{tienda.simbolo}{producto.precio}</span>
+              </p>
+            ) : (
+              <p className="font-producto text-lg font-bold text-[#7a5414]">{tienda.simbolo}{producto.precio}</p>
+            )}
             {textoStock(producto) && (
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-bold ${

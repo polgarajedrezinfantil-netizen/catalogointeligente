@@ -35,20 +35,49 @@ function leerFotos(formData: FormData): string[] {
 
 export type EstadoProd = { ok: boolean; mensaje: string } | null;
 
+// Lee el precio de oferta (vacío -> null).
+function leerOferta(formData: FormData): number | null {
+  const v = formData.get("precio_oferta");
+  return v === "" || v == null ? null : Number(v);
+}
+
+// Validaciones para no guardar datos rotos.
+function validar(d: {
+  nombre: string;
+  precio: number;
+  costo: number;
+  oferta: number | null;
+}): string | null {
+  if (!d.nombre) return "El nombre es obligatorio.";
+  if (d.precio < 0 || d.costo < 0) return "Los precios no pueden ser negativos.";
+  if (d.oferta != null && (d.oferta <= 0 || d.oferta >= d.precio)) {
+    return "El precio de oferta debe ser mayor a 0 y menor al precio normal.";
+  }
+  return null;
+}
+
 export async function crearProducto(
   _prev: EstadoProd,
   formData: FormData,
 ): Promise<EstadoProd> {
   const tienda_id = await tiendaDelAdmin();
   const supabase = await createClient();
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const precio = Number(formData.get("precio") ?? 0);
+  const costo = Number(formData.get("costo") ?? 0);
+  const oferta = leerOferta(formData);
+  const err = validar({ nombre, precio, costo, oferta });
+  if (err) return { ok: false, mensaje: err };
+
   const { error } = await supabase.from("productos").insert({
     tienda_id,
-    nombre: String(formData.get("nombre") ?? "").trim(),
+    nombre,
     descripcion: String(formData.get("descripcion") ?? "") || null,
     linea_id: String(formData.get("linea_id") || "") || null,
     nido_id: String(formData.get("nido_id") || "") || null,
-    costo: Number(formData.get("costo") ?? 0),
-    precio: Number(formData.get("precio") ?? 0),
+    costo,
+    precio,
+    precio_oferta: oferta,
     cantidad: Number(formData.get("cantidad") ?? 1),
     categoria: String(formData.get("categoria") ?? "") || null,
     genero: String(formData.get("genero") || "") || null,
@@ -66,13 +95,21 @@ export async function actualizarProducto(
 ): Promise<EstadoProd> {
   const tienda_id = await tiendaDelAdmin();
   const supabase = await createClient();
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const precio = Number(formData.get("precio") ?? 0);
+  const costo = Number(formData.get("costo") ?? 0);
+  const oferta = leerOferta(formData);
+  const err = validar({ nombre, precio, costo, oferta });
+  if (err) return { ok: false, mensaje: err };
+
   const patch: Record<string, unknown> = {
-    nombre: String(formData.get("nombre") ?? "").trim(),
+    nombre,
     descripcion: String(formData.get("descripcion") ?? "") || null,
     linea_id: String(formData.get("linea_id") || "") || null,
     nido_id: String(formData.get("nido_id") || "") || null,
-    costo: Number(formData.get("costo") ?? 0),
-    precio: Number(formData.get("precio") ?? 0),
+    costo,
+    precio,
+    precio_oferta: oferta,
     cantidad: Number(formData.get("cantidad") ?? 1),
     categoria: String(formData.get("categoria") ?? "") || null,
     genero: String(formData.get("genero") || "") || null,
@@ -89,6 +126,77 @@ export async function actualizarProducto(
   if (error) return { ok: false, mensaje: error.message };
   revalidatePath("/admin/productos");
   return { ok: true, mensaje: "Producto actualizado." };
+}
+
+// Duplica un producto (queda oculto para revisarlo antes de mostrarlo).
+export async function duplicarProducto(formData: FormData) {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  const id = String(formData.get("producto_id"));
+  const { data: orig } = await supabase
+    .from("productos")
+    .select("*")
+    .eq("id", id)
+    .eq("tienda_id", tienda_id)
+    .single();
+  if (!orig) throw new Error("Producto no encontrado");
+
+  const o = orig as Record<string, unknown>;
+  const { error } = await supabase.from("productos").insert({
+    tienda_id,
+    nombre: `${o.nombre} (copia)`,
+    descripcion: o.descripcion,
+    linea_id: o.linea_id,
+    nido_id: o.nido_id,
+    costo: o.costo,
+    precio: o.precio,
+    precio_oferta: o.precio_oferta,
+    cantidad: o.cantidad,
+    categoria: o.categoria,
+    genero: o.genero,
+    fotos: o.fotos,
+    atributos: o.atributos,
+    oculto: true,
+    estado: "disponible",
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/productos");
+}
+
+// Oculta/muestra un producto en el catálogo público (sin borrarlo).
+export async function alternarOculto(formData: FormData) {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  const oculto = formData.get("oculto") === "true"; // estado actual
+  const { error } = await supabase
+    .from("productos")
+    .update({ oculto: !oculto })
+    .eq("id", String(formData.get("producto_id")))
+    .eq("tienda_id", tienda_id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/productos");
+}
+
+// Guarda el orden manual de los productos (orden = posición en la lista).
+export async function reordenarProductos(formData: FormData) {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  let ids: string[] = [];
+  try {
+    ids = JSON.parse(String(formData.get("ids") ?? "[]"));
+  } catch {
+    ids = [];
+  }
+  await Promise.all(
+    ids.map((id, i) =>
+      supabase
+        .from("productos")
+        .update({ orden: i })
+        .eq("id", id)
+        .eq("tienda_id", tienda_id),
+    ),
+  );
+  revalidatePath("/admin/productos");
 }
 
 export async function borrarProducto(formData: FormData) {

@@ -70,7 +70,7 @@ export default async function CatalogoPublico({
       supabase.from("nidos").select("*").eq("tienda_id", tienda.id).eq("activo", true).order("orden"),
       supabase.from("lineas_de_venta").select("*").eq("tienda_id", tienda.id).eq("archivada", false).order("orden"),
       supabase.from("campos_linea").select("*").eq("tienda_id", tienda.id).eq("es_filtro", true).eq("archivado", false).order("orden"),
-      supabase.from("productos").select("*").eq("tienda_id", tienda.id).order("creado", { ascending: false }),
+      supabase.from("productos").select("*").eq("tienda_id", tienda.id).eq("oculto", false).order("orden", { ascending: true }).order("creado", { ascending: false }),
     ]);
 
   const waUrl = tienda.whatsapp ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}` : null;

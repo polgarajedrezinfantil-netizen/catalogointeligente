@@ -117,22 +117,60 @@ export function SubirFotos({
     fijar(lista.filter((p) => p !== path));
   }
 
+  // Reordena: la primera foto es la "principal".
+  function mover(idx: number, dir: -1 | 1) {
+    const j = idx + dir;
+    if (j < 0 || j >= lista.length) return;
+    const next = [...lista];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    fijar(next);
+  }
+
   const valor = multiple ? JSON.stringify(lista) : (lista[0] ?? "");
 
   return (
     <div className="space-y-2">
       <input type="hidden" name={name} value={valor} readOnly />
-      <div className="flex flex-wrap items-center gap-2">
-        {lista.map((p) => (
-          <div key={p} className="relative h-20 w-20 overflow-hidden rounded-lg">
-            <Image src={urlFoto(p)} alt="foto" fill sizes="80px" className="object-cover" />
-            <button
-              type="button"
-              onClick={() => quitar(p)}
-              className="absolute right-0 top-0 rounded-bl-lg bg-durazno px-1.5 text-xs font-bold text-white"
-            >
-              ×
-            </button>
+      <div className="flex flex-wrap items-start gap-2">
+        {lista.map((p, idx) => (
+          <div key={p} className="w-20">
+            <div className="relative h-20 w-20 overflow-hidden rounded-lg">
+              <Image src={urlFoto(p)} alt="foto" fill sizes="80px" className="object-cover" />
+              {multiple && idx === 0 && (
+                <span className="absolute left-0 top-0 rounded-br-lg bg-verde-mielina px-1 text-[9px] font-bold text-white">
+                  Principal
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => quitar(p)}
+                className="absolute right-0 top-0 rounded-bl-lg bg-durazno px-1.5 text-xs font-bold text-white"
+              >
+                ×
+              </button>
+            </div>
+            {multiple && lista.length > 1 && (
+              <div className="mt-0.5 flex justify-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => mover(idx, -1)}
+                  disabled={idx === 0}
+                  aria-label="Mover antes"
+                  className="rounded border border-miel-borde px-1.5 text-xs disabled:opacity-30"
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  onClick={() => mover(idx, 1)}
+                  disabled={idx === lista.length - 1}
+                  aria-label="Mover después"
+                  className="rounded border border-miel-borde px-1.5 text-xs disabled:opacity-30"
+                >
+                  ▶
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
