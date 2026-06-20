@@ -20,6 +20,19 @@ function aOpciones(texto: string): string[] {
     .filter(Boolean);
 }
 
+// Normaliza un enlace: agrega https:// si falta y vacío -> null.
+function normalizarUrl(v: FormDataEntryValue | null): string | null {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  return "https://" + s.replace(/^\/+/, "");
+}
+
+function textoONull(v: FormDataEntryValue | null): string | null {
+  const s = String(v ?? "").trim();
+  return s || null;
+}
+
 // ---------------- Configuración general ----------------
 export async function guardarConfigGeneral(formData: FormData) {
   const tienda_id = await tiendaDelAdmin();
@@ -41,6 +54,40 @@ export async function guardarConfigGeneral(formData: FormData) {
       lista_espera_global: formData.get("lista_espera_global") === "on",
       whatsapp_api_activa: formData.get("whatsapp_api_activa") === "on",
       datos_pago: String(formData.get("datos_pago") ?? "").trim() || null,
+      actualizado: new Date().toISOString(),
+    })
+    .eq("id", tienda_id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/configuracion");
+}
+
+// ---------------- Logo de la tienda ----------------
+export async function guardarLogo(formData: FormData) {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  const logo = String(formData.get("logo") ?? "").trim() || null;
+  const { error } = await supabase
+    .from("tiendas")
+    .update({ logo_url: logo, actualizado: new Date().toISOString() })
+    .eq("id", tienda_id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/configuracion");
+}
+
+// ---------------- Contacto y redes ----------------
+export async function guardarContacto(formData: FormData) {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tiendas")
+    .update({
+      instagram_url: normalizarUrl(formData.get("instagram_url")),
+      facebook_url: normalizarUrl(formData.get("facebook_url")),
+      tiktok_url: normalizarUrl(formData.get("tiktok_url")),
+      maps_url: normalizarUrl(formData.get("maps_url")),
+      direccion: textoONull(formData.get("direccion")),
+      horario: textoONull(formData.get("horario")),
+      bio: textoONull(formData.get("bio")),
       actualizado: new Date().toISOString(),
     })
     .eq("id", tienda_id);

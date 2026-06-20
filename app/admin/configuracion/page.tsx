@@ -2,8 +2,11 @@ import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Campo, Linea, Tienda } from "@/lib/tipos";
 import { TIPOS_CAMPO } from "@/lib/tipos";
+import { SubirFotos } from "@/components/SubirFotos";
 import {
   guardarConfigGeneral,
+  guardarLogo,
+  guardarContacto,
   crearLinea,
   actualizarLinea,
   archivarLinea,
@@ -172,6 +175,105 @@ export default async function ConfiguracionPage() {
           <div className="sm:col-span-2">
             <button className="rounded-full bg-verde-mielina px-6 py-2 font-bold text-white">
               Guardar configuración
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {/* ---------- Logo de la tienda ---------- */}
+      <section className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-5">
+        <h2 className="mb-1 font-titulo text-lg text-coral">Logo de la tienda</h2>
+        <p className="mb-4 text-sm text-cacao">
+          Se muestra en el círculo del encabezado del catálogo. Usa una imagen
+          cuadrada para que se vea bien.
+        </p>
+        <form action={guardarLogo} className="space-y-3">
+          <SubirFotos
+            name="logo"
+            tiendaId={tienda.id}
+            inicial={tienda.logo_url ? [tienda.logo_url] : []}
+          />
+          <button className="rounded-full bg-verde-mielina px-6 py-2 font-bold text-white">
+            Guardar logo
+          </button>
+        </form>
+      </section>
+
+      {/* ---------- Contacto y redes ---------- */}
+      <section className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-5">
+        <h2 className="mb-1 font-titulo text-lg text-coral">Contacto y redes</h2>
+        <p className="mb-4 text-sm text-cacao">
+          Aparecen como botones en el encabezado del catálogo. Deja vacío lo que
+          no uses. (El WhatsApp se configura arriba, en General.)
+        </p>
+        <form action={guardarContacto} className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-cacao">
+            Instagram
+            <input
+              name="instagram_url"
+              defaultValue={tienda.instagram_url ?? ""}
+              placeholder="instagram.com/tu_tienda"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <label className="text-sm font-semibold text-cacao">
+            Facebook
+            <input
+              name="facebook_url"
+              defaultValue={tienda.facebook_url ?? ""}
+              placeholder="facebook.com/tu_tienda"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <label className="text-sm font-semibold text-cacao">
+            TikTok
+            <input
+              name="tiktok_url"
+              defaultValue={tienda.tiktok_url ?? ""}
+              placeholder="tiktok.com/@tu_tienda"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <label className="text-sm font-semibold text-cacao">
+            Cómo llegar (Google Maps)
+            <input
+              name="maps_url"
+              defaultValue={tienda.maps_url ?? ""}
+              placeholder="maps.app.goo.gl/..."
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <label className="text-sm font-semibold text-cacao">
+            Dirección
+            <input
+              name="direccion"
+              defaultValue={tienda.direccion ?? ""}
+              placeholder="Calle, número, ciudad"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <label className="text-sm font-semibold text-cacao">
+            Horario
+            <input
+              name="horario"
+              defaultValue={tienda.horario ?? ""}
+              placeholder="Lun a Sáb, 10–19h"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <label className="text-sm font-semibold text-cacao sm:col-span-2">
+            Bio / descripción corta
+            <textarea
+              name="bio"
+              rows={2}
+              defaultValue={tienda.bio ?? ""}
+              placeholder="Ropa y más para bebés 🍯"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+          <div className="sm:col-span-2">
+            <button className="rounded-full bg-verde-mielina px-6 py-2 font-bold text-white">
+              Guardar contacto
             </button>
           </div>
         </form>

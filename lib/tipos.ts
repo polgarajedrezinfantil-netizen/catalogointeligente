@@ -40,6 +40,13 @@ export type Tienda = {
   maps_url: string | null;
   instagram_url: string | null;
   facebook_url: string | null;
+  tiktok_url: string | null;
+  subtitulo: string | null;
+  descripcion: string | null;
+  banner_url: string | null;
+  og_titulo: string | null;
+  og_descripcion: string | null;
+  tema: Record<string, string>;
 };
 
 export type TipoCampo = "texto" | "numero" | "lista" | "multi" | "sino";
@@ -99,6 +106,9 @@ export type Producto = {
   holder_celular: string | null;
   hold_expira: string | null;
   creado: string;
+  oculto: boolean;
+  orden: number;
+  precio_oferta: number | null;
 };
 
 export type Campo = {

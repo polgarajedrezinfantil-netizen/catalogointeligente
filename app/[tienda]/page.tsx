@@ -6,7 +6,8 @@ import type { Campo, Linea, Nido, Producto, Tienda } from "@/lib/tipos";
 import { CapturaCliente } from "./CapturaCliente";
 import { CatalogoCliente } from "./CatalogoCliente";
 import { BarraInferior } from "./BarraInferior";
-import { IconoMaps, IconoWhatsApp, IconoInstagram, IconoFacebook } from "@/components/IconosMarca";
+import type { ComponentType } from "react";
+import { IconoMaps, IconoWhatsApp, IconoInstagram, IconoFacebook, IconoTikTok } from "@/components/IconosMarca";
 
 // Catálogo público de una tienda: nidos.myelplay.com/<slug>
 // Diseño mobile-first con "ilusión de Instagram" (90% entran desde celular).
@@ -42,6 +43,16 @@ export default async function CatalogoPublico({
     ? "@" + tienda.instagram_url.replace(/\/+$/, "").split("/").pop()
     : null;
 
+  // Accesos rápidos (botones con icono de marca). Solo los configurados.
+  type Acceso = { href: string; label: string; Icon: ComponentType<{ className?: string }> };
+  const accesos: Acceso[] = [
+    tienda.maps_url && { href: tienda.maps_url, label: "Cómo llegar", Icon: IconoMaps },
+    waUrl && { href: waUrl, label: "WhatsApp", Icon: IconoWhatsApp },
+    tienda.instagram_url && { href: tienda.instagram_url, label: "Instagram", Icon: IconoInstagram },
+    tienda.facebook_url && { href: tienda.facebook_url, label: "Facebook", Icon: IconoFacebook },
+    tienda.tiktok_url && { href: tienda.tiktok_url, label: "TikTok", Icon: IconoTikTok },
+  ].filter(Boolean) as Acceso[];
+
   return (
     // Marco tipo teléfono: centrado, con gutters en escritorio (como ver IG en web).
     <div className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col bg-white shadow-xl">
@@ -60,53 +71,26 @@ export default async function CatalogoPublico({
         {handle && <span className="font-mano text-sm text-cacao">· {handle}</span>}
       </header>
 
-      {/* Accesos rápidos: una sola fila horizontal con los iconos de cada marca */}
-      <div className="grid grid-cols-4 gap-1.5 border-b border-miel-borde px-2.5 py-3">
-        {tienda.maps_url && (
-          <a
-            href={tienda.maps_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
-          >
-            <IconoMaps className="h-6 w-6" />
-            <span className="text-center text-[11px] font-bold leading-tight text-texto">Cómo llegar</span>
-          </a>
-        )}
-        {waUrl && (
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
-          >
-            <IconoWhatsApp className="h-6 w-6" />
-            <span className="text-center text-[11px] font-bold leading-tight text-texto">WhatsApp</span>
-          </a>
-        )}
-        {tienda.instagram_url && (
-          <a
-            href={tienda.instagram_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
-          >
-            <IconoInstagram className="h-6 w-6" />
-            <span className="text-center text-[11px] font-bold leading-tight text-texto">Instagram</span>
-          </a>
-        )}
-        {tienda.facebook_url && (
-          <a
-            href={tienda.facebook_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
-          >
-            <IconoFacebook className="h-6 w-6" />
-            <span className="text-center text-[11px] font-bold leading-tight text-texto">Facebook</span>
-          </a>
-        )}
-      </div>
+      {/* Accesos rápidos: una sola fila con los iconos de cada marca */}
+      {accesos.length > 0 && (
+        <div
+          className="grid gap-1.5 border-b border-miel-borde px-2.5 py-3"
+          style={{ gridTemplateColumns: `repeat(${accesos.length}, minmax(0,1fr))` }}
+        >
+          {accesos.map(({ href, label, Icon }) => (
+            <a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
+            >
+              <Icon className="h-6 w-6" />
+              <span className="text-center text-[11px] font-bold leading-tight text-texto">{label}</span>
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* Contenido */}
       <div className="flex-1 px-2 pb-24 pt-3">
