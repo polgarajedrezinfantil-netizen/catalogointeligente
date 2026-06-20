@@ -27,7 +27,7 @@ const caveat = Caveat({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mamielina.myelplay.com"),
-  title: "Mamielina",
+  title: "Catálogo Mamielina",
   description:
     "Catálogo en línea de Mamielina 🍯 Ropa y más para bebés 0-24 meses. Mira y aparta lo que te guste.",
   openGraph: {

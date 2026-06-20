@@ -34,6 +34,11 @@ export type Tienda = {
   whatsapp_api_config: Record<string, unknown>;
   email_api_config: Record<string, unknown>;
   datos_pago: string | null;
+  bio: string | null;
+  direccion: string | null;
+  horario: string | null;
+  maps_url: string | null;
+  instagram_url: string | null;
 };
 
 export type TipoCampo = "texto" | "numero" | "lista" | "multi" | "sino";

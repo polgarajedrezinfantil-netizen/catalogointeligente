@@ -847,7 +847,16 @@ function DetalleProducto({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-cacao/50 sm:items-center sm:p-4" onClick={onCerrar}>
       <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-[var(--radius-marca)] bg-white sm:rounded-[var(--radius-marca)]" onClick={(e) => e.stopPropagation()}>
-        <Carrusel fotos={producto.fotos} nombre={producto.nombre} />
+        <div className="relative">
+          <Carrusel fotos={producto.fotos} nombre={producto.nombre} />
+          <button
+            onClick={onCerrar}
+            aria-label="Cerrar"
+            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-lg leading-none text-cacao shadow-md backdrop-blur transition hover:bg-white"
+          >
+            ✕
+          </button>
+        </div>
 
         <div className="space-y-2 p-4">
           <div className="flex items-center justify-between gap-2">
@@ -860,7 +869,6 @@ function DetalleProducto({
               >
                 {esFavorito ? "❤️" : "🤍"}
               </button>
-              <button onClick={onCerrar} className="text-cacao">✕</button>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1106,7 +1114,7 @@ function BuscaProducto({ tiendaId }: { tiendaId: string }) {
 
   return (
     <form id="busca" onSubmit={enviar} className="scroll-mt-20 rounded-[var(--radius-marca)] border border-dashed border-durazno bg-white p-4">
-      <p className="mb-2 font-titulo text-durazno">¿Buscas algún producto en especial?</p>
+      <p className="mb-2 font-titulo text-durazno">Dinos qué te gustaría ver en Mamielina 🍯</p>
       <div className="flex gap-2">
         <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Ej. botitas talla 25, mameluco de algodón…" className="flex-1 rounded-xl border border-miel-borde bg-crema px-3 py-2 text-sm" />
         <button className="rounded-full bg-durazno px-4 py-2 text-sm font-bold text-white">Enviar</button>
