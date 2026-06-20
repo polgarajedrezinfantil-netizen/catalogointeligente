@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { Plan, Tienda } from "@/lib/tipos";
 import { crearTienda, cambiarPlan, alternarActiva } from "./actions";
 import { InvitarEquipo } from "./InvitarEquipo";
+import { GestionUsuarios } from "./GestionUsuarios";
 
 // Panel de superadmin: alta y gestión de tiendas del SaaS.
 export default async function TiendasPage() {
@@ -15,11 +17,18 @@ export default async function TiendasPage() {
     await Promise.all([
       supabase.from("tiendas").select("*").order("creado", { ascending: false }),
       supabase.from("planes").select("*").order("orden"),
-      supabase.from("perfiles").select("nombre, rol, tienda_id"),
+      supabase.from("perfiles").select("id, nombre, rol, tienda_id"),
     ]);
 
   const listaTiendas = (tiendas ?? []) as Tienda[];
   const listaPlanes = (planes ?? []) as Plan[];
+
+  // Correos (viven en auth.users) para poder mostrarlos junto a cada perfil.
+  const admin = createServiceClient();
+  const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const emailPorId = new Map(
+    (authData?.users ?? []).map((u) => [u.id, u.email ?? ""]),
+  );
 
   return (
     <div className="space-y-6">
@@ -62,7 +71,14 @@ export default async function TiendasPage() {
           <p className="text-cacao">Aún no hay tiendas. Crea la primera arriba.</p>
         )}
         {listaTiendas.map((t) => {
-          const admins = (perfiles ?? []).filter((p) => p.tienda_id === t.id);
+          const usuarios = (perfiles ?? [])
+            .filter((p) => p.tienda_id === t.id)
+            .map((p) => ({
+              id: p.id as string,
+              nombre: p.nombre as string,
+              rol: p.rol as string,
+              email: emailPorId.get(p.id as string) ?? "",
+            }));
           const plan = listaPlanes.find((p) => p.clave === t.plan_clave);
           return (
             <div
@@ -129,12 +145,8 @@ export default async function TiendasPage() {
               {/* Invitar usuario (contraseña temporal o correo) */}
               <InvitarEquipo tiendaId={t.id} />
 
-              {admins.length > 0 && (
-                <p className="mt-2 text-xs text-cacao">
-                  Equipo:{" "}
-                  {admins.map((a) => `${a.nombre} (${a.rol})`).join(" · ")}
-                </p>
-              )}
+              {/* Equipo: ver correos, restablecer contraseñas y eliminar */}
+              <GestionUsuarios usuarios={usuarios} />
             </div>
           );
         })}

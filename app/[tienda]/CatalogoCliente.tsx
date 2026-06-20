@@ -59,7 +59,6 @@ export function CatalogoCliente({
   const [orden, setOrden] = useState<"recomendado" | "precio_asc" | "precio_desc">("recomendado");
   const [soloDisponibles, setSoloDisponibles] = useState(false);
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
-  const [filtrosAbierto, setFiltrosAbierto] = useState(false);
   const [generoSel, setGeneroSel] = useState<"" | "nino" | "nina" | "unisex" | "mami">("");
   const [turno, setTurno] = useState<{ id: string; nombre: string } | null>(null);
   const miCelularRef = useRef("");
@@ -290,12 +289,6 @@ export function CatalogoCliente({
 
   const detalle = productos.find((p) => p.id === detalleId) ?? null;
 
-  // Cuántos filtros "avanzados" hay activos (para el badge del botón Filtros).
-  const filtrosActivos =
-    (soloDisponibles ? 1 : 0) +
-    (orden !== "recomendado" ? 1 : 0) +
-    Object.values(filtros).filter(Boolean).length;
-
   return (
     <div className="space-y-4">
       {/* Aviso automático: te promovieron en la fila */}
@@ -335,51 +328,30 @@ export function CatalogoCliente({
         </div>
       )}
 
-      {/* Fila única de filtros rápidos + búsqueda (icono) + Filtros */}
-      <div id="buscador" className="flex items-center gap-2">
-        <div className="flex flex-1 gap-2 overflow-x-auto pr-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Fila de chips: categorías y género (la búsqueda vive en la barra inferior) */}
+      <div id="buscador" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Chip
+          activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
+          onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
+        >
+          Todo
+        </Chip>
+        <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
+        <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
+        <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
+        {favoritos.size > 0 && (
+          <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
+        )}
+        {lineas.map((l) => (
           <Chip
-            activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
-            onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
+            key={l.id}
+            activo={lineaSel === l.id}
+            onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
+            color={l.color}
           >
-            Todo
+            {l.icono} {l.nombre}
           </Chip>
-          <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
-          <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
-          <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
-          {favoritos.size > 0 && (
-            <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
-          )}
-          {lineas.map((l) => (
-            <Chip
-              key={l.id}
-              activo={lineaSel === l.id}
-              onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
-              color={l.color}
-            >
-              {l.icono} {l.nombre}
-            </Chip>
-          ))}
-        </div>
-        {/* Controles fijos, separados de los chips con un divisor para que no se amontonen */}
-        <div className="flex shrink-0 items-center gap-2 border-l border-miel-borde pl-2">
-          <button
-            onClick={() => { setBuscadorAbierto((v) => !v); }}
-            aria-label="Buscar"
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-base ${buscadorAbierto || busqueda ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
-          >
-            🔍
-          </button>
-          <button
-            onClick={() => setFiltrosAbierto(true)}
-            className={`relative flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-semibold ${filtrosActivos > 0 ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
-          >
-            Filtros
-            {filtrosActivos > 0 && (
-              <span className="rounded-full bg-white/30 px-1 text-xs">{filtrosActivos}</span>
-            )}
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* Buscador desplegable */}
@@ -491,81 +463,6 @@ export function CatalogoCliente({
         />
       )}
 
-      {filtrosAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-cacao/50 sm:items-center sm:p-4"
-          onClick={() => setFiltrosAbierto(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-t-[var(--radius-marca)] bg-white p-4 sm:rounded-[var(--radius-marca)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-titulo text-lg text-durazno">Filtros y orden</h3>
-              <button onClick={() => setFiltrosAbierto(false)} aria-label="Cerrar" className="text-cacao">✕</button>
-            </div>
-
-            <p className="mb-1 text-sm font-semibold text-cacao">Ordenar por</p>
-            <div className="mb-4 flex flex-wrap gap-2">
-              <Chip activo={orden === "recomendado"} onClick={() => setOrden("recomendado")}>🆕 Novedades</Chip>
-              <Chip activo={orden === "precio_asc"} onClick={() => setOrden("precio_asc")}>Precio ↑</Chip>
-              <Chip activo={orden === "precio_desc"} onClick={() => setOrden("precio_desc")}>Precio ↓</Chip>
-            </div>
-
-            <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-texto">
-              <input
-                type="checkbox"
-                checked={soloDisponibles}
-                onChange={(e) => setSoloDisponibles(e.target.checked)}
-                className="accent-verde-mielina"
-              />
-              Mostrar solo disponibles
-            </label>
-
-            {camposFiltro.length > 0 && (
-              <div className="mb-4 space-y-2">
-                {camposFiltro.map((c) => (
-                  <label key={c.id} className="block text-sm text-cacao">
-                    <span className="mb-1 block font-semibold">{c.nombre}</span>
-                    {c.tipo === "lista" || c.tipo === "multi" ? (
-                      <select
-                        value={filtros[c.id] ?? ""}
-                        onChange={(e) => setFiltros((f) => ({ ...f, [c.id]: e.target.value }))}
-                        className="w-full rounded-lg border border-miel-borde bg-crema px-2 py-1.5"
-                      >
-                        <option value="">Todos</option>
-                        {c.opciones.map((o) => (<option key={o} value={o}>{o}</option>))}
-                      </select>
-                    ) : (
-                      <input
-                        value={filtros[c.id] ?? ""}
-                        onChange={(e) => setFiltros((f) => ({ ...f, [c.id]: e.target.value }))}
-                        placeholder="…"
-                        className="w-full rounded-lg border border-miel-borde bg-crema px-2 py-1.5"
-                      />
-                    )}
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setOrden("recomendado"); setSoloDisponibles(false); setFiltros({}); }}
-                className="flex-1 rounded-full border border-miel-borde bg-white py-2 text-sm font-bold text-texto"
-              >
-                Limpiar
-              </button>
-              <button
-                onClick={() => setFiltrosAbierto(false)}
-                className="flex-1 rounded-full bg-verde-mielina py-2 text-sm font-bold text-white"
-              >
-                Ver {visibles.length} productos
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

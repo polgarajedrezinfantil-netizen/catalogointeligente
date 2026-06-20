@@ -138,3 +138,38 @@ export async function gestionarInvitacion(
     mensaje: `Cuenta creada para ${email}. Contraseña temporal: ${password}`,
   };
 }
+
+// El superadmin restablece la contraseña de un usuario de tienda y obtiene
+// una contraseña temporal para compartir.
+export async function restablecerPassword(
+  _prev: EstadoInvitacion,
+  formData: FormData,
+): Promise<EstadoInvitacion> {
+  await exigirSuperadmin();
+  const user_id = String(formData.get("user_id"));
+  if (!user_id) return { ok: false, mensaje: "Falta el usuario." };
+
+  const password = generarPassword();
+  const admin = createServiceClient();
+  const { error } = await admin.auth.admin.updateUserById(user_id, { password });
+  if (error) return { ok: false, mensaje: error.message };
+
+  return { ok: true, mensaje: `Nueva contraseña: ${password}` };
+}
+
+// El superadmin elimina por completo la cuenta de un usuario de tienda.
+export async function eliminarUsuario(formData: FormData) {
+  await exigirSuperadmin();
+  const user_id = String(formData.get("user_id"));
+  if (!user_id) throw new Error("Falta el usuario");
+
+  const perfil = await getPerfil();
+  if (perfil?.id === user_id) {
+    throw new Error("No puedes eliminar tu propia cuenta.");
+  }
+
+  const admin = createServiceClient();
+  const { error } = await admin.auth.admin.deleteUser(user_id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/tiendas");
+}
