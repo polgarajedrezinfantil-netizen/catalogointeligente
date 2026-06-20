@@ -26,8 +26,34 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Los Nidos de Mamielina",
-  description: "Catálogo en línea de MAMIELINA — miel & protección.",
+  metadataBase: new URL("https://mamielina.myelplay.com"),
+  title: "Catálogo Mamielina — miel y protección",
+  description:
+    "Catálogo en línea de Mamielina 🍯 Ropa y más para bebés 0-24 meses. Mira y aparta lo que te guste.",
+  openGraph: {
+    type: "website",
+    siteName: "Catálogo Mamielina",
+    title: "Catálogo Mamielina — miel y protección",
+    description:
+      "Ropa y más para bebés 0-24 meses 🍯 Mira el catálogo y aparta lo que te guste.",
+    url: "https://mamielina.myelplay.com",
+    locale: "es_MX",
+    images: [
+      {
+        url: "/og.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Mamielina — miel y protección",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Catálogo Mamielina — miel y protección",
+    description:
+      "Ropa y más para bebés 0-24 meses 🍯 Mira el catálogo y aparta lo que te guste.",
+    images: ["/og.jpg"],
+  },
 };
 
 export default function RootLayout({
