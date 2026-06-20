@@ -39,6 +39,7 @@ export type Tienda = {
   horario: string | null;
   maps_url: string | null;
   instagram_url: string | null;
+  facebook_url: string | null;
 };
 
 export type TipoCampo = "texto" | "numero" | "lista" | "multi" | "sino";

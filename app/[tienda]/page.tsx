@@ -35,7 +35,6 @@ export default async function CatalogoPublico({
       supabase.from("productos").select("*").eq("tienda_id", tienda.id).order("creado", { ascending: false }),
     ]);
 
-  const nProductos = (productos ?? []).length;
   const waUrl = tienda.whatsapp ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}` : null;
   const marca = tienda.nombre.split(" - ")[0];
   const handle = tienda.instagram_url
@@ -60,71 +59,49 @@ export default async function CatalogoPublico({
         {handle && <span className="font-mano text-sm text-cacao">· {handle}</span>}
       </header>
 
-      {/* Sección de perfil estilo Instagram */}
-      <section className="border-b border-miel-borde px-4 pb-4 pt-3">
-        <div className="flex items-center gap-4">
-          <div className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-full bg-gradient-to-tr from-sol via-durazno to-coral p-[3px]">
-            <span className="relative block h-full w-full overflow-hidden rounded-full border-2 border-white bg-crema">
-              {tienda.logo_url && (
-                <Image src={urlFoto(tienda.logo_url)} alt={tienda.nombre} fill sizes="76px" className="object-cover" />
-              )}
-            </span>
-          </div>
-          <div className="flex flex-1 justify-around text-center text-texto">
-            <div>
-              <p className="font-producto text-lg font-bold leading-none">{nProductos}</p>
-              <p className="text-xs text-cacao">productos</p>
-            </div>
-            <div>
-              <p className="font-producto text-lg font-bold leading-none">0-24</p>
-              <p className="text-xs text-cacao">meses</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 space-y-0.5">
-          <p className="font-producto text-base font-bold text-texto">{tienda.nombre}</p>
-          <p className="font-mano text-base text-coral">🍯 miel y protección</p>
-          {tienda.bio && (
-            <p className="whitespace-pre-line text-sm leading-snug text-texto">{tienda.bio}</p>
-          )}
-          {tienda.direccion && <p className="pt-1 text-sm text-cacao">📍 {tienda.direccion}</p>}
-          {tienda.horario && <p className="text-sm text-cacao">🕒 {tienda.horario}</p>}
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {tienda.maps_url && (
-            <a
-              href={tienda.maps_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full bg-verde-mielina px-4 py-1.5 text-sm font-bold text-white"
-            >
-              📍 Cómo llegar
-            </a>
-          )}
-          {waUrl && (
-            <a
-              href={waUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-miel-borde bg-white px-4 py-1.5 text-sm font-bold text-texto"
-            >
-              💬 WhatsApp
-            </a>
-          )}
-          {tienda.instagram_url && (
-            <a
-              href={tienda.instagram_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-miel-borde bg-white px-4 py-1.5 text-sm font-bold text-texto"
-            >
-              Instagram
-            </a>
-          )}
-        </div>
-      </section>
+      {/* Accesos rápidos (para que los productos se vean de inmediato) */}
+      <div className="flex flex-wrap gap-2 border-b border-miel-borde px-3 py-2.5">
+        {tienda.maps_url && (
+          <a
+            href={tienda.maps_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-verde-mielina px-3.5 py-1.5 text-sm font-bold text-white"
+          >
+            📍 Cómo llegar
+          </a>
+        )}
+        {waUrl && (
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-miel-borde bg-white px-3.5 py-1.5 text-sm font-bold text-texto"
+          >
+            💬 WhatsApp
+          </a>
+        )}
+        {tienda.instagram_url && (
+          <a
+            href={tienda.instagram_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-miel-borde bg-white px-3.5 py-1.5 text-sm font-bold text-texto"
+          >
+            📸 Instagram
+          </a>
+        )}
+        {tienda.facebook_url && (
+          <a
+            href={tienda.facebook_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-miel-borde bg-white px-3.5 py-1.5 text-sm font-bold text-texto"
+          >
+            👍 Facebook
+          </a>
+        )}
+      </div>
 
       {/* Contenido */}
       <div className="flex-1 px-2 pb-24 pt-3">
