@@ -173,6 +173,7 @@ export function FormProducto({
           <option value="nino">👦 Niño</option>
           <option value="nina">👧 Niña</option>
           <option value="unisex">🧒 Unisex</option>
+          <option value="mami">🤱 Mami</option>
         </select>
       </label>
 

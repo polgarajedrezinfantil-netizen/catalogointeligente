@@ -94,7 +94,7 @@ export type Producto = {
   fotos: string[];
   atributos: Record<string, unknown>;
   categoria: string | null;
-  genero: "nino" | "nina" | "unisex" | null;
+  genero: "nino" | "nina" | "unisex" | "mami" | null;
   estado: EstadoProducto;
   holder_celular: string | null;
   hold_expira: string | null;

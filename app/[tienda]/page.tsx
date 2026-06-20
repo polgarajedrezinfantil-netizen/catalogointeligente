@@ -6,6 +6,7 @@ import type { Campo, Linea, Nido, Producto, Tienda } from "@/lib/tipos";
 import { CapturaCliente } from "./CapturaCliente";
 import { CatalogoCliente } from "./CatalogoCliente";
 import { BarraInferior } from "./BarraInferior";
+import { IconoMaps, IconoWhatsApp, IconoInstagram, IconoFacebook } from "@/components/IconosMarca";
 
 // Catálogo público de una tienda: nidos.myelplay.com/<slug>
 // Diseño mobile-first con "ilusión de Instagram" (90% entran desde celular).
@@ -59,16 +60,17 @@ export default async function CatalogoPublico({
         {handle && <span className="font-mano text-sm text-cacao">· {handle}</span>}
       </header>
 
-      {/* Accesos rápidos (para que los productos se vean de inmediato) */}
-      <div className="flex flex-wrap gap-2 border-b border-miel-borde px-3 py-2.5">
+      {/* Accesos rápidos: una sola fila horizontal con los iconos de cada marca */}
+      <div className="grid grid-cols-4 gap-1.5 border-b border-miel-borde px-2.5 py-3">
         {tienda.maps_url && (
           <a
             href={tienda.maps_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full bg-verde-mielina px-3.5 py-1.5 text-sm font-bold text-white"
+            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
           >
-            📍 Cómo llegar
+            <IconoMaps className="h-6 w-6" />
+            <span className="text-center text-[11px] font-bold leading-tight text-texto">Cómo llegar</span>
           </a>
         )}
         {waUrl && (
@@ -76,9 +78,10 @@ export default async function CatalogoPublico({
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-miel-borde bg-white px-3.5 py-1.5 text-sm font-bold text-texto"
+            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
           >
-            💬 WhatsApp
+            <IconoWhatsApp className="h-6 w-6" />
+            <span className="text-center text-[11px] font-bold leading-tight text-texto">WhatsApp</span>
           </a>
         )}
         {tienda.instagram_url && (
@@ -86,9 +89,10 @@ export default async function CatalogoPublico({
             href={tienda.instagram_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-miel-borde bg-white px-3.5 py-1.5 text-sm font-bold text-texto"
+            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
           >
-            📸 Instagram
+            <IconoInstagram className="h-6 w-6" />
+            <span className="text-center text-[11px] font-bold leading-tight text-texto">Instagram</span>
           </a>
         )}
         {tienda.facebook_url && (
@@ -96,9 +100,10 @@ export default async function CatalogoPublico({
             href={tienda.facebook_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-miel-borde bg-white px-3.5 py-1.5 text-sm font-bold text-texto"
+            className="flex flex-col items-center gap-1 rounded-2xl border border-miel-borde bg-white py-2 transition active:scale-95"
           >
-            👍 Facebook
+            <IconoFacebook className="h-6 w-6" />
+            <span className="text-center text-[11px] font-bold leading-tight text-texto">Facebook</span>
           </a>
         )}
       </div>

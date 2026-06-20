@@ -60,7 +60,7 @@ export function CatalogoCliente({
   const [soloDisponibles, setSoloDisponibles] = useState(false);
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [filtrosAbierto, setFiltrosAbierto] = useState(false);
-  const [generoSel, setGeneroSel] = useState<"" | "nino" | "nina" | "unisex">("");
+  const [generoSel, setGeneroSel] = useState<"" | "nino" | "nina" | "unisex" | "mami">("");
   const [turno, setTurno] = useState<{ id: string; nombre: string } | null>(null);
   const miCelularRef = useRef("");
 
@@ -337,7 +337,7 @@ export function CatalogoCliente({
 
       {/* Fila única de filtros rápidos + búsqueda (icono) + Filtros */}
       <div id="buscador" className="flex items-center gap-2">
-        <div className="flex flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-1 gap-2 overflow-x-auto pr-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Chip
             activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
             onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
@@ -346,6 +346,7 @@ export function CatalogoCliente({
           </Chip>
           <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
           <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
+          <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
           {favoritos.size > 0 && (
             <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
           )}
@@ -360,22 +361,25 @@ export function CatalogoCliente({
             </Chip>
           ))}
         </div>
-        <button
-          onClick={() => { setBuscadorAbierto((v) => !v); }}
-          aria-label="Buscar"
-          className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${buscadorAbierto || busqueda ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
-        >
-          🔍
-        </button>
-        <button
-          onClick={() => setFiltrosAbierto(true)}
-          className={`relative shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filtrosActivos > 0 ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
-        >
-          Filtros
-          {filtrosActivos > 0 && (
-            <span className="ml-1 rounded-full bg-white/30 px-1 text-xs">{filtrosActivos}</span>
-          )}
-        </button>
+        {/* Controles fijos, separados de los chips con un divisor para que no se amontonen */}
+        <div className="flex shrink-0 items-center gap-2 border-l border-miel-borde pl-2">
+          <button
+            onClick={() => { setBuscadorAbierto((v) => !v); }}
+            aria-label="Buscar"
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-base ${buscadorAbierto || busqueda ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
+          >
+            🔍
+          </button>
+          <button
+            onClick={() => setFiltrosAbierto(true)}
+            className={`relative flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-semibold ${filtrosActivos > 0 ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
+          >
+            Filtros
+            {filtrosActivos > 0 && (
+              <span className="rounded-full bg-white/30 px-1 text-xs">{filtrosActivos}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Buscador desplegable */}
