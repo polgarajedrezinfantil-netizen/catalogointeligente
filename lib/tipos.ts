@@ -98,6 +98,7 @@ export type Producto = {
   estado: EstadoProducto;
   holder_celular: string | null;
   hold_expira: string | null;
+  creado: string;
 };
 
 export type Campo = {

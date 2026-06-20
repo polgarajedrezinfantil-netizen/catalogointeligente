@@ -21,9 +21,8 @@ export function BarraInferior({ whatsapp }: { whatsapp: string | null }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function irABuscar() {
-    const buscador = document.getElementById("buscador");
-    buscador?.scrollIntoView({ behavior: "smooth", block: "center" });
-    buscador?.querySelector("input")?.focus();
+    window.dispatchEvent(new CustomEvent("abrir-buscador"));
+    document.getElementById("buscador")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   function abrirCarrito() {
     window.dispatchEvent(new CustomEvent("abrir-carrito"));

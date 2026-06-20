@@ -58,6 +58,8 @@ export function CatalogoCliente({
   const [busqueda, setBusqueda] = useState("");
   const [orden, setOrden] = useState<"recomendado" | "precio_asc" | "precio_desc">("recomendado");
   const [soloDisponibles, setSoloDisponibles] = useState(false);
+  const [buscadorAbierto, setBuscadorAbierto] = useState(false);
+  const [filtrosAbierto, setFiltrosAbierto] = useState(false);
   const [generoSel, setGeneroSel] = useState<"" | "nino" | "nina" | "unisex">("");
   const [turno, setTurno] = useState<{ id: string; nombre: string } | null>(null);
   const miCelularRef = useRef("");
@@ -240,6 +242,13 @@ export function CatalogoCliente({
     };
   }, [supabase, tienda.id]);
 
+  // La barra inferior pide abrir el buscador desplegable.
+  useEffect(() => {
+    const abrir = () => setBuscadorAbierto(true);
+    window.addEventListener("abrir-buscador", abrir);
+    return () => window.removeEventListener("abrir-buscador", abrir);
+  }, []);
+
   const camposFiltro = useMemo(
     () => (lineaSel ? campos.filter((c) => c.linea_id === lineaSel) : []),
     [campos, lineaSel],
@@ -281,8 +290,14 @@ export function CatalogoCliente({
 
   const detalle = productos.find((p) => p.id === detalleId) ?? null;
 
+  // Cuántos filtros "avanzados" hay activos (para el badge del botón Filtros).
+  const filtrosActivos =
+    (soloDisponibles ? 1 : 0) +
+    (orden !== "recomendado" ? 1 : 0) +
+    Object.values(filtros).filter(Boolean).length;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Aviso automático: te promovieron en la fila */}
       {turno && (
         <div className="flex items-center gap-2 rounded-xl bg-verde-mielina/15 px-3 py-2 text-sm text-[#3f5a1c]">
@@ -320,103 +335,67 @@ export function CatalogoCliente({
         </div>
       )}
 
-      {/* Buscador + orden + solo disponibles */}
-      <div className="space-y-2">
-        <div className="relative" id="buscador">
+      {/* Fila única de filtros rápidos + búsqueda (icono) + Filtros */}
+      <div id="buscador" className="flex items-center gap-2">
+        <div className="flex flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <Chip
+            activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
+            onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
+          >
+            Todo
+          </Chip>
+          <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
+          <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
+          {favoritos.size > 0 && (
+            <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
+          )}
+          {lineas.map((l) => (
+            <Chip
+              key={l.id}
+              activo={lineaSel === l.id}
+              onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
+              color={l.color}
+            >
+              {l.icono} {l.nombre}
+            </Chip>
+          ))}
+        </div>
+        <button
+          onClick={() => { setBuscadorAbierto((v) => !v); }}
+          aria-label="Buscar"
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${buscadorAbierto || busqueda ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
+        >
+          🔍
+        </button>
+        <button
+          onClick={() => setFiltrosAbierto(true)}
+          className={`relative shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filtrosActivos > 0 ? "border-verde-mielina bg-verde-mielina text-white" : "border-miel-borde bg-white text-texto"}`}
+        >
+          Filtros
+          {filtrosActivos > 0 && (
+            <span className="ml-1 rounded-full bg-white/30 px-1 text-xs">{filtrosActivos}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Buscador desplegable */}
+      {buscadorAbierto && (
+        <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cacao">🔍</span>
           <input
+            autoFocus
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar en el catálogo…"
             className="w-full rounded-full border border-miel-borde bg-white py-2 pl-9 pr-9 text-sm outline-none focus:border-verde-mielina"
           />
-          {busqueda && (
-            <button
-              onClick={() => setBusqueda("")}
-              aria-label="Limpiar"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-cacao"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-cacao">
-          <select
-            value={orden}
-            onChange={(e) => setOrden(e.target.value as typeof orden)}
-            className="rounded-full border border-miel-borde bg-white px-3 py-1.5 font-semibold"
+          <button
+            onClick={() => { setBusqueda(""); setBuscadorAbierto(false); }}
+            aria-label="Cerrar búsqueda"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-cacao"
           >
-            <option value="recomendado">Recomendado</option>
-            <option value="precio_asc">Precio: menor a mayor</option>
-            <option value="precio_desc">Precio: mayor a menor</option>
-          </select>
-          <label className="flex items-center gap-1.5 rounded-full border border-miel-borde bg-white px-3 py-1.5 font-semibold">
-            <input
-              type="checkbox"
-              checked={soloDisponibles}
-              onChange={(e) => setSoloDisponibles(e.target.checked)}
-              className="accent-verde-mielina"
-            />
-            Solo disponibles
-          </label>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Chip activo={lineaSel === ""} onClick={() => { setLineaSel(""); setFiltros({}); }}>
-          Ver todo
-        </Chip>
-        {favoritos.size > 0 && (
-          <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>
-            ❤️ Favoritos ({favoritos.size})
-          </Chip>
-        )}
-        {lineas.map((l) => (
-          <Chip
-            key={l.id}
-            activo={lineaSel === l.id}
-            onClick={() => { setLineaSel(l.id); setFiltros({}); }}
-            color={l.color}
-          >
-            {l.icono} {l.nombre}
-          </Chip>
-        ))}
-      </div>
-
-      {/* Para quién: Niño / Niña */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-cacao">Para:</span>
-        <Chip activo={generoSel === ""} onClick={() => setGeneroSel("")}>Todos</Chip>
-        <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
-        <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
-      </div>
-
-      {camposFiltro.length > 0 && (
-        <div className="flex flex-wrap gap-2 rounded-xl bg-white p-3">
-          {camposFiltro.map((c) => (
-            <label key={c.id} className="text-xs text-cacao">
-              <span className="mr-1 font-semibold">{c.nombre}:</span>
-              {c.tipo === "lista" || c.tipo === "multi" ? (
-                <select
-                  value={filtros[c.id] ?? ""}
-                  onChange={(e) => setFiltros((f) => ({ ...f, [c.id]: e.target.value }))}
-                  className="rounded-lg border border-miel-borde bg-crema px-2 py-1"
-                >
-                  <option value="">Todos</option>
-                  {c.opciones.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={filtros[c.id] ?? ""}
-                  onChange={(e) => setFiltros((f) => ({ ...f, [c.id]: e.target.value }))}
-                  placeholder="…"
-                  className="w-24 rounded-lg border border-miel-borde bg-crema px-2 py-1"
-                />
-              )}
-            </label>
-          ))}
+            ✕
+          </button>
         </div>
       )}
 
@@ -432,44 +411,42 @@ export function CatalogoCliente({
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-[3px]">
+      <div className="grid grid-cols-2 gap-2.5">
         {visibles.map((p) => (
-          <div key={p.id} className="relative aspect-square overflow-hidden bg-crema">
-            <button onClick={() => verProducto(p.id)} className="absolute inset-0">
-              {p.fotos[0] && (
-                <Image
-                  src={urlFoto(p.fotos[0])}
-                  alt={p.nombre}
-                  fill
-                  sizes="33vw"
-                  className="object-cover"
-                />
-              )}
+          <div key={p.id} className="relative overflow-hidden rounded-2xl border border-miel-borde bg-white">
+            <button onClick={() => verProducto(p.id)} className="block w-full text-left">
+              <div className="relative aspect-[4/5] bg-crema">
+                {p.fotos[0] && (
+                  <Image src={urlFoto(p.fotos[0])} alt={p.nombre} fill sizes="50vw" className="object-cover" />
+                )}
+                {/* Badges arriba-izquierda */}
+                <div className="pointer-events-none absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
+                  {p.estado !== "disponible" ? (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ETIQUETA[p.estado].cls}`}>
+                      {ETIQUETA[p.estado].txt}
+                    </span>
+                  ) : (
+                    esNuevo(p) && (
+                      <span className="rounded-full bg-coral px-2 py-0.5 text-[10px] font-bold text-white">🆕 Nuevo</span>
+                    )
+                  )}
+                  {p.estado === "disponible" && p.cantidad === 1 && (
+                    <span className="rounded-full bg-durazno px-2 py-0.5 text-[10px] font-bold text-white">🔥 Último</span>
+                  )}
+                </div>
+              </div>
+              <div className="px-2.5 py-2">
+                <p className="truncate text-xs font-semibold text-texto">{p.nombre}</p>
+                <p className="font-producto text-base font-bold text-[#7a5414]">{tienda.simbolo}{p.precio}</p>
+              </div>
             </button>
-            {/* Estado (sutil, estilo IG) */}
-            {p.estado !== "disponible" && (
-              <span className={`pointer-events-none absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${ETIQUETA[p.estado].cls}`}>
-                {ETIQUETA[p.estado].txt}
-              </span>
-            )}
-            {/* Corazón de favorito (no bloquea inventario) */}
             <button
               onClick={() => alternarFavorito(p.id)}
               aria-label={favoritos.has(p.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
-              className="absolute left-1 top-1 text-base drop-shadow"
+              className="absolute right-1.5 top-1.5 text-lg drop-shadow"
             >
               {favoritos.has(p.id) ? "❤️" : "🤍"}
             </button>
-            {/* Última pieza: empujón de urgencia */}
-            {p.estado === "disponible" && p.cantidad === 1 && (
-              <span className="pointer-events-none absolute bottom-1 right-1 rounded-full bg-durazno px-1.5 py-0.5 text-[9px] font-bold text-white">
-                Último
-              </span>
-            )}
-            {/* Precio sobre la foto */}
-            <span className="pointer-events-none absolute bottom-1 left-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-bold text-white">
-              {tienda.simbolo}{p.precio}
-            </span>
           </div>
         ))}
       </div>
@@ -509,8 +486,89 @@ export function CatalogoCliente({
           }}
         />
       )}
+
+      {filtrosAbierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-cacao/50 sm:items-center sm:p-4"
+          onClick={() => setFiltrosAbierto(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-[var(--radius-marca)] bg-white p-4 sm:rounded-[var(--radius-marca)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-titulo text-lg text-durazno">Filtros y orden</h3>
+              <button onClick={() => setFiltrosAbierto(false)} aria-label="Cerrar" className="text-cacao">✕</button>
+            </div>
+
+            <p className="mb-1 text-sm font-semibold text-cacao">Ordenar por</p>
+            <div className="mb-4 flex flex-wrap gap-2">
+              <Chip activo={orden === "recomendado"} onClick={() => setOrden("recomendado")}>🆕 Novedades</Chip>
+              <Chip activo={orden === "precio_asc"} onClick={() => setOrden("precio_asc")}>Precio ↑</Chip>
+              <Chip activo={orden === "precio_desc"} onClick={() => setOrden("precio_desc")}>Precio ↓</Chip>
+            </div>
+
+            <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-texto">
+              <input
+                type="checkbox"
+                checked={soloDisponibles}
+                onChange={(e) => setSoloDisponibles(e.target.checked)}
+                className="accent-verde-mielina"
+              />
+              Mostrar solo disponibles
+            </label>
+
+            {camposFiltro.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {camposFiltro.map((c) => (
+                  <label key={c.id} className="block text-sm text-cacao">
+                    <span className="mb-1 block font-semibold">{c.nombre}</span>
+                    {c.tipo === "lista" || c.tipo === "multi" ? (
+                      <select
+                        value={filtros[c.id] ?? ""}
+                        onChange={(e) => setFiltros((f) => ({ ...f, [c.id]: e.target.value }))}
+                        className="w-full rounded-lg border border-miel-borde bg-crema px-2 py-1.5"
+                      >
+                        <option value="">Todos</option>
+                        {c.opciones.map((o) => (<option key={o} value={o}>{o}</option>))}
+                      </select>
+                    ) : (
+                      <input
+                        value={filtros[c.id] ?? ""}
+                        onChange={(e) => setFiltros((f) => ({ ...f, [c.id]: e.target.value }))}
+                        placeholder="…"
+                        className="w-full rounded-lg border border-miel-borde bg-crema px-2 py-1.5"
+                      />
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setOrden("recomendado"); setSoloDisponibles(false); setFiltros({}); }}
+                className="flex-1 rounded-full border border-miel-borde bg-white py-2 text-sm font-bold text-texto"
+              >
+                Limpiar
+              </button>
+              <button
+                onClick={() => setFiltrosAbierto(false)}
+                className="flex-1 rounded-full bg-verde-mielina py-2 text-sm font-bold text-white"
+              >
+                Ver {visibles.length} productos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+// Producto creado hace menos de 14 días → badge "Nuevo".
+function esNuevo(p: Producto): boolean {
+  return Date.now() - new Date(p.creado).getTime() < 14 * 24 * 60 * 60 * 1000;
 }
 
 // Carrito: junta los productos que el cliente apartó. Quitar = liberar.
