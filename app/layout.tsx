@@ -27,13 +27,13 @@ const caveat = Caveat({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mamielina.myelplay.com"),
-  title: "Catálogo Mamielina — miel y protección",
+  title: "Mamielina",
   description:
     "Catálogo en línea de Mamielina 🍯 Ropa y más para bebés 0-24 meses. Mira y aparta lo que te guste.",
   openGraph: {
     type: "website",
     siteName: "Catálogo Mamielina",
-    title: "Catálogo Mamielina — miel y protección",
+    title: "Mamielina",
     description:
       "Ropa y más para bebés 0-24 meses 🍯 Mira el catálogo y aparta lo que te guste.",
     url: "https://mamielina.myelplay.com",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Catálogo Mamielina — miel y protección",
+    title: "Mamielina",
     description:
       "Ropa y más para bebés 0-24 meses 🍯 Mira el catálogo y aparta lo que te guste.",
     images: ["/og.jpg"],
