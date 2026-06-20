@@ -1,13 +1,49 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { urlFoto } from "@/lib/fotos";
+import { temaStyle } from "@/lib/tema";
 import type { Campo, Linea, Nido, Producto, Tienda } from "@/lib/tipos";
 import { CapturaCliente } from "./CapturaCliente";
 import { CatalogoCliente } from "./CatalogoCliente";
 import { BarraInferior } from "./BarraInferior";
 import type { ComponentType } from "react";
 import { IconoMaps, IconoWhatsApp, IconoInstagram, IconoFacebook, IconoTikTok } from "@/components/IconosMarca";
+
+// Preview social (OG) por tienda: título, descripción e imagen propios.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tienda: string }>;
+}): Promise<Metadata> {
+  const { tienda: slug } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tiendas")
+    .select("nombre, og_titulo, og_descripcion, descripcion, bio, banner_url, logo_url")
+    .eq("slug", slug)
+    .eq("activa", true)
+    .maybeSingle();
+  if (!data) return {};
+
+  const marca = String(data.nombre).split(" - ")[0];
+  const titulo = data.og_titulo || marca;
+  const desc =
+    data.og_descripcion || data.descripcion || data.bio || `Catálogo de ${marca}`;
+  const img = data.banner_url
+    ? urlFoto(data.banner_url)
+    : data.logo_url
+      ? urlFoto(data.logo_url)
+      : "/og.jpg";
+
+  return {
+    title: titulo,
+    description: desc,
+    openGraph: { title: titulo, description: desc, images: [{ url: img }] },
+    twitter: { card: "summary_large_image", title: titulo, description: desc, images: [img] },
+  };
+}
 
 // Catálogo público de una tienda: nidos.myelplay.com/<slug>
 // Diseño mobile-first con "ilusión de Instagram" (90% entran desde celular).
@@ -55,8 +91,26 @@ export default async function CatalogoPublico({
 
   return (
     // Marco tipo teléfono: centrado, con gutters en escritorio (como ver IG en web).
-    <div className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col bg-white shadow-xl">
+    // El `style` con el tema de la tienda re-tematiza todo el catálogo en runtime.
+    <div
+      className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col bg-white shadow-xl"
+      style={temaStyle(tienda.tema)}
+    >
       <CapturaCliente tiendaId={tienda.id} />
+
+      {/* Portada / banner (opcional) */}
+      {tienda.banner_url && (
+        <div className="relative aspect-[16/7] w-full overflow-hidden">
+          <Image
+            src={urlFoto(tienda.banner_url)}
+            alt={`Portada de ${marca}`}
+            fill
+            sizes="460px"
+            className="object-cover"
+            priority
+          />
+        </div>
+      )}
 
       {/* Barra superior estilo IG (compacta, sticky) */}
       <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-miel-borde bg-white/95 px-4 py-2.5 backdrop-blur">
@@ -67,8 +121,15 @@ export default async function CatalogoPublico({
             )}
           </span>
         </div>
-        <p className="font-producto text-base font-bold text-texto">{marca}</p>
-        {handle && <span className="font-mano text-sm text-cacao">· {handle}</span>}
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2">
+            <p className="font-producto text-base font-bold text-texto">{marca}</p>
+            {handle && <span className="font-mano text-sm text-cacao">· {handle}</span>}
+          </div>
+          {tienda.subtitulo && (
+            <p className="font-mano text-sm leading-tight text-cacao">{tienda.subtitulo}</p>
+          )}
+        </div>
       </header>
 
       {/* Accesos rápidos: una sola fila con los iconos de cada marca */}

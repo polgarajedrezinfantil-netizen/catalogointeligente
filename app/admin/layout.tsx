@@ -13,6 +13,7 @@ const NAV_SUPER = [
 const NAV_TIENDA = [
   { href: "/admin", nombre: "Inicio", lista: true },
   { href: "/admin/configuracion", nombre: "Configuración", lista: true },
+  { href: "/admin/apariencia", nombre: "Apariencia", lista: true },
   { href: "/admin/nidos", nombre: "Nidos", lista: true },
   { href: "/admin/productos", nombre: "Productos", lista: true },
   { href: "/admin/identificar", nombre: "Identificar (IA)", lista: true },
