@@ -4,9 +4,10 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { urlFoto } from "@/lib/fotos";
-import { temaStyle, type Tema } from "@/lib/tema";
+import { temaStyle, TEMA_DEFAULT, TOKENS_TEMA, type Tema } from "@/lib/tema";
 import type { Producto } from "@/lib/tipos";
 import { editarRapido, reordenarProductos, type EstadoRapido } from "../productos/actions";
+import { guardarCabeceraColores, type EstadoApariencia } from "../apariencia/actions";
 
 const inputCls =
   "rounded-xl border border-miel-borde bg-crema px-3 py-2 outline-none focus:border-verde-mielina";
@@ -40,6 +41,10 @@ export function VistaCliente(props: Props) {
   const [ordenSucio, setOrdenSucio] = useState(false);
   const [guardandoOrden, setGuardandoOrden] = useState(false);
   const [editar, setEditar] = useState<Producto | null>(null);
+  // Encabezado y colores editables en vivo.
+  const [tema, setTema] = useState<Tema>({ ...TEMA_DEFAULT, ...props.tema });
+  const [subtitulo, setSubtitulo] = useState(props.subtitulo);
+  const [editarCab, setEditarCab] = useState(false);
 
   const editando = modo === "editar";
   // En "ver" se oculta lo que el cliente no ve; en "editar" se ve todo.
@@ -108,7 +113,7 @@ export function VistaCliente(props: Props) {
 
       {/* Marco tipo teléfono con el tema de la tienda */}
       <div
-        style={temaStyle(props.tema)}
+        style={temaStyle(tema)}
         className="mx-auto w-full max-w-[460px] overflow-hidden rounded-[var(--radius-marca)] border border-miel-borde bg-white shadow-sm"
       >
         {props.bannerUrl && (
@@ -116,8 +121,8 @@ export function VistaCliente(props: Props) {
             <Image src={urlFoto(props.bannerUrl)} alt="portada" fill sizes="460px" className="object-cover" />
           </div>
         )}
-        {/* Encabezado */}
-        <div className="flex items-center gap-2.5 border-b border-miel-borde bg-white/95 px-4 py-2.5">
+        {/* Encabezado (editable) */}
+        <div className="relative flex items-center gap-2.5 border-b border-miel-borde bg-white/95 px-4 py-2.5">
           <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-tr from-sol via-durazno to-coral p-[2px]">
             <span className="relative block h-full w-full overflow-hidden rounded-full border-2 border-white bg-crema">
               {props.logoUrl && (
@@ -130,10 +135,18 @@ export function VistaCliente(props: Props) {
               <p className="font-producto text-base font-bold text-texto">{props.marca}</p>
               {props.handle && <span className="font-mano text-sm text-cacao">· {props.handle}</span>}
             </div>
-            {props.subtitulo && (
-              <p className="font-mano text-sm leading-tight text-cacao">{props.subtitulo}</p>
+            {subtitulo && (
+              <p className="font-mano text-sm leading-tight text-cacao">{subtitulo}</p>
             )}
           </div>
+          {editando && (
+            <button
+              onClick={() => setEditarCab(true)}
+              className="absolute right-2 top-2 rounded-full bg-verde-mielina px-2.5 py-1 text-xs font-bold text-white shadow"
+            >
+              ✏️ Encabezado y colores
+            </button>
+          )}
         </div>
 
         {/* Grid de productos (igual que el catálogo) */}
@@ -233,6 +246,111 @@ export function VistaCliente(props: Props) {
           onCerrar={() => setEditar(null)}
         />
       )}
+
+      {editarCab && (
+        <EdicionCabecera
+          tema={tema}
+          setTema={setTema}
+          subtitulo={subtitulo}
+          setSubtitulo={setSubtitulo}
+          onCerrar={() => setEditarCab(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Hoja de edición de encabezado (subtítulo) y colores, con recolor en vivo.
+function EdicionCabecera({
+  tema,
+  setTema,
+  subtitulo,
+  setSubtitulo,
+  onCerrar,
+}: {
+  tema: Tema;
+  setTema: (t: Tema) => void;
+  subtitulo: string;
+  setSubtitulo: (s: string) => void;
+  onCerrar: () => void;
+}) {
+  const [pend, setPend] = useState(false);
+  const [estado, setEstado] = useState<EstadoApariencia>(null);
+
+  async function guardar() {
+    setPend(true);
+    setEstado(null);
+    const fd = new FormData();
+    fd.set("tema", JSON.stringify(tema));
+    fd.set("subtitulo", subtitulo);
+    const res = await guardarCabeceraColores(fd);
+    setPend(false);
+    setEstado(res);
+    if (res?.ok) setTimeout(onCerrar, 700);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-cacao/50 sm:items-center sm:p-4" onClick={onCerrar}>
+      <div
+        className="max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-[var(--radius-marca)] bg-white p-4 sm:rounded-[var(--radius-marca)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-titulo text-lg text-durazno">Encabezado y colores</h3>
+          <button onClick={onCerrar} aria-label="Cerrar" className="text-cacao">✕</button>
+        </div>
+
+        <label className="block text-sm font-semibold text-cacao">
+          Eslogan / subtítulo
+          <input
+            value={subtitulo}
+            onChange={(e) => setSubtitulo(e.target.value)}
+            placeholder="miel & protección"
+            className={`mt-1 w-full ${inputCls}`}
+          />
+        </label>
+
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-sm font-semibold text-cacao">Colores</span>
+          <button
+            type="button"
+            onClick={() => setTema({ ...TEMA_DEFAULT })}
+            className="rounded-full border border-miel-borde px-3 py-1 text-xs font-semibold"
+          >
+            Restaurar marca
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {TOKENS_TEMA.map(({ key, label }) => (
+            <div key={key} className="flex items-center gap-2">
+              <input
+                type="color"
+                value={tema[key] ?? "#000000"}
+                onChange={(e) => setTema({ ...tema, [key]: e.target.value })}
+                className="h-8 w-9 shrink-0 rounded-lg border border-miel-borde"
+                aria-label={label}
+              />
+              <span className="truncate text-xs text-cacao">{label}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-cacao">Los colores se ven en vivo en el catálogo de arriba.</p>
+
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <button onClick={guardar} disabled={pend} className="rounded-full bg-verde-mielina px-6 py-2 font-bold text-white disabled:opacity-60">
+            {pend ? "Guardando…" : "Guardar"}
+          </button>
+          {estado && (
+            <span className={`text-sm ${estado.ok ? "text-[#3f5a1c]" : "text-durazno"}`}>{estado.mensaje}</span>
+          )}
+        </div>
+        <p className="text-xs text-cacao">
+          Más opciones (logo, banner, descripción, redes):{" "}
+          <Link href="/admin/apariencia" className="font-semibold underline">Apariencia</Link>
+          {" · "}
+          <Link href="/admin/configuracion" className="font-semibold underline">Configuración</Link>
+        </p>
+      </div>
     </div>
   );
 }

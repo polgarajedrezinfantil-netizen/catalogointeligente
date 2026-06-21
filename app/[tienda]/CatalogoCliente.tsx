@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { urlFoto } from "@/lib/fotos";
+import { hexDeColor } from "@/lib/colores";
 import type { Campo, EstadoProducto, Linea, Nido, Producto } from "@/lib/tipos";
 import { datosClienteLocal } from "./CapturaCliente";
 
@@ -888,9 +889,31 @@ function DetalleProducto({
             {camposLinea.map((c) => {
               const v = producto.atributos?.[c.id];
               if (v == null || v === "") return null;
+              const vals = Array.isArray(v) ? v.map(String) : [String(v)];
+              const esColor = c.nombre.trim().toLowerCase() === "color";
               return (
                 <li key={c.id} className="rounded-full bg-crema px-2 py-1 text-xs text-cacao">
-                  <strong>{c.nombre}:</strong> {Array.isArray(v) ? v.join(", ") : String(v)}
+                  <strong>{c.nombre}:</strong>{" "}
+                  {esColor ? (
+                    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1 align-middle">
+                      {vals.map((val) => {
+                        const hex = hexDeColor(val);
+                        return (
+                          <span key={val} className="inline-flex items-center gap-1">
+                            {hex && (
+                              <span
+                                className="inline-block h-3 w-3 rounded-full border border-black/10"
+                                style={{ background: hex }}
+                              />
+                            )}
+                            {val}
+                          </span>
+                        );
+                      })}
+                    </span>
+                  ) : (
+                    vals.join(", ")
+                  )}
                 </li>
               );
             })}

@@ -56,3 +56,35 @@ export async function guardarApariencia(
   revalidatePath("/admin/apariencia");
   return { ok: true, mensaje: "Apariencia guardada. Ya se ve en tu catálogo 🍯" };
 }
+
+// Guarda solo encabezado (subtítulo) + colores, desde la Vista Cliente.
+export async function guardarCabeceraColores(
+  formData: FormData,
+): Promise<EstadoApariencia> {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+
+  let tema: Tema = { ...TEMA_DEFAULT };
+  try {
+    const parsed = JSON.parse(String(formData.get("tema") ?? "{}"));
+    if (parsed && typeof parsed === "object") tema = { ...TEMA_DEFAULT, ...parsed };
+  } catch {
+    /* deja la marca */
+  }
+  for (const k of Object.keys(tema)) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(tema[k])) tema[k] = TEMA_DEFAULT[k] ?? "#000000";
+  }
+
+  const { error } = await supabase
+    .from("tiendas")
+    .update({
+      tema,
+      subtitulo: textoONull(formData.get("subtitulo")),
+      actualizado: new Date().toISOString(),
+    })
+    .eq("id", tienda_id);
+  if (error) return { ok: false, mensaje: error.message };
+  revalidatePath("/admin/vista");
+  revalidatePath("/admin/apariencia");
+  return { ok: true, mensaje: "Guardado ✅" };
+}

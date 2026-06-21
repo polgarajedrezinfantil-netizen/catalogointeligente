@@ -2,6 +2,8 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { SubirFotos } from "@/components/SubirFotos";
+import { SelectorTallas } from "./SelectorTallas";
+import { SelectorColores } from "./SelectorColores";
 import type { Campo, Linea, Nido, Producto } from "@/lib/tipos";
 import { type EstadoProd } from "./actions";
 
@@ -107,12 +109,15 @@ export function FormProducto({
         </select>
       </label>
 
-      {/* Campos dinámicos de la línea */}
+      {/* Campos dinámicos de la línea (Talla y Color con UI dedicada) */}
       {camposLinea.length > 0 && (
         <div className="sm:col-span-2 grid gap-3 rounded-xl bg-crema p-3 sm:grid-cols-2">
-          {camposLinea.map((c) => (
-            <CampoInput key={c.id} campo={c} producto={producto} />
-          ))}
+          {camposLinea.map((c) => {
+            const nombre = c.nombre.trim().toLowerCase();
+            if (nombre === "talla") return <SelectorTallas key={c.id} campo={c} producto={producto} />;
+            if (nombre === "color") return <SelectorColores key={c.id} campo={c} producto={producto} />;
+            return <CampoInput key={c.id} campo={c} producto={producto} />;
+          })}
         </div>
       )}
 
