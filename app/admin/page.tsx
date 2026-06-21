@@ -3,6 +3,7 @@ import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Estrella } from "@/components/marca/Elementos";
 import type { EstadoProducto, Linea, Producto } from "@/lib/tipos";
+import { ProyeccionInventario } from "./ProyeccionInventario";
 
 const ESTADOS: { clave: EstadoProducto; txt: string; cls: string }[] = [
   { clave: "disponible", txt: "Disponible", cls: "bg-verde-mielina" },
@@ -81,7 +82,7 @@ export default async function AdminInicio() {
     supabase.from("eventos_apartado").select("producto_id").eq("tienda_id", t).eq("tipo", "apartar"),
     supabase.from("eventos_cliente").select("ref_id").eq("tienda_id", t).eq("tipo", "abrir_producto"),
     supabase.from("solicitudes_cliente").select("texto, estado, creado").eq("tienda_id", t).order("creado", { ascending: false }),
-    supabase.from("tiendas").select("etiqueta_precio").eq("id", t).single(),
+    supabase.from("tiendas").select("etiqueta_precio, inversion_manual").eq("id", t).single(),
     supabase.from("clientes").select("id", { count: "exact", head: true }).eq("tienda_id", t),
     supabase.from("pedidos").select("id", { count: "exact", head: true }).eq("tienda_id", t).eq("estado", "pendiente"),
   ]);
@@ -102,7 +103,9 @@ export default async function AdminInicio() {
   const gananciaReal = vendidos.reduce((a, p) => a + (Number(p.precio) - Number(p.costo)), 0);
 
   // Proyección de TODO el inventario existente al precio publicado:
-  const invertido = existentes.reduce((a, p) => a + Number(p.costo) * Number(p.cantidad), 0);
+  const invertidoAuto = existentes.reduce((a, p) => a + Number(p.costo) * Number(p.cantidad), 0);
+  const inversionManual = tienda?.inversion_manual != null ? Number(tienda.inversion_manual) : null;
+  const invertido = inversionManual ?? invertidoAuto; // valor efectivo (manual si lo fijaron)
   const ventaPotencial = existentes.reduce((a, p) => a + precioPub(p) * Number(p.cantidad), 0);
   const gananciaEstimada = ventaPotencial - invertido; // = venta potencial − invertido
 
@@ -159,21 +162,13 @@ export default async function AdminInicio() {
         <Tarjeta titulo="Ganancia estimada" valor={`${simbolo}${gananciaEstimada.toFixed(0)}`} sub="Si vendes todo lo existente" />
       </div>
 
-      {/* Explicación de las cifras de dinero */}
-      <section className="rounded-[var(--radius-marca)] border border-miel-borde bg-miel/20 p-4 text-sm text-[#7a5a14]">
-        <p className="mb-1 font-semibold">Proyección de tu inventario actual</p>
-        <ul className="space-y-1">
-          <li>
-            💰 <strong>Invertido:</strong> {simbolo}{invertido.toFixed(0)} — lo que te costó la mercancía que aún no vendes (costo × piezas).
-          </li>
-          <li>
-            🏷️ <strong>Venta potencial:</strong> {simbolo}{ventaPotencial.toFixed(0)} — si vendes todo lo existente al precio publicado.
-          </li>
-          <li>
-            🍯 <strong>Ganancia estimada:</strong> {simbolo}{gananciaEstimada.toFixed(0)} — venta potencial menos lo invertido.
-          </li>
-        </ul>
-      </section>
+      {/* Proyección con inversión editable */}
+      <ProyeccionInventario
+        simbolo={simbolo}
+        invertidoAuto={invertidoAuto}
+        ventaPotencial={ventaPotencial}
+        inversionManual={inversionManual}
+      />
 
       {/* Por estado */}
       <section className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4">

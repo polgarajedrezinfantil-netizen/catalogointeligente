@@ -47,6 +47,7 @@ export type Tienda = {
   og_titulo: string | null;
   og_descripcion: string | null;
   tema: Record<string, string>;
+  inversion_manual: number | null;
 };
 
 export type TipoCampo = "texto" | "numero" | "lista" | "multi" | "sino";
