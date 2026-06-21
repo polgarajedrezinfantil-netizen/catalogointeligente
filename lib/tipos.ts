@@ -50,6 +50,19 @@ export type Tienda = {
   inversion_manual: number | null;
 };
 
+// Guía de tallas: tabla de referencia (encabezados + filas de celdas).
+export type GuiaTallas = {
+  id: string;
+  tienda_id: string;
+  linea_id: string | null; // null = general
+  nombre: string;
+  columnas: string[];
+  filas: string[][];
+  orden: number;
+  activa: boolean;
+  creado: string;
+};
+
 export type TipoCampo = "texto" | "numero" | "lista" | "multi" | "sino";
 
 export const TIPOS_CAMPO: { valor: TipoCampo; etiqueta: string }[] = [

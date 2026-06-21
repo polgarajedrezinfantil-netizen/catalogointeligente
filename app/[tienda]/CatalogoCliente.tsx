@@ -5,7 +5,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { urlFoto } from "@/lib/fotos";
 import { hexDeColor } from "@/lib/colores";
-import type { Campo, EstadoProducto, Linea, Nido, Producto } from "@/lib/tipos";
+import type { Campo, EstadoProducto, GuiaTallas, Linea, Nido, Producto } from "@/lib/tipos";
 import { datosClienteLocal } from "./CapturaCliente";
 
 const ETIQUETA: Record<EstadoProducto, { txt: string; cls: string }> = {
@@ -38,12 +38,14 @@ export function CatalogoCliente({
   lineas,
   campos,
   productos: productosIniciales,
+  guias = [],
 }: {
   tienda: TiendaMin;
   nidos: Nido[];
   lineas: Linea[];
   campos: Campo[];
   productos: Producto[];
+  guias?: GuiaTallas[];
 }) {
   const supabase = createClient();
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
@@ -454,6 +456,7 @@ export function CatalogoCliente({
           lineas={lineas}
           tienda={tienda}
           celular={miCelular}
+          guia={guias.find((g) => g.linea_id === detalle.linea_id) ?? guias.find((g) => g.linea_id === null) ?? null}
           esFavorito={favoritos.has(detalle.id)}
           onFavorito={() => alternarFavorito(detalle.id)}
           onPedirDatos={pedirDatos}
@@ -846,6 +849,7 @@ function DetalleProducto({
   lineas,
   tienda,
   celular,
+  guia,
   esFavorito,
   onFavorito,
   onPedirDatos,
@@ -856,6 +860,7 @@ function DetalleProducto({
   lineas: Linea[];
   tienda: TiendaMin;
   celular: string;
+  guia: GuiaTallas | null;
   esFavorito: boolean;
   onFavorito: () => void;
   onPedirDatos: (cb: () => void) => void;
@@ -865,6 +870,7 @@ function DetalleProducto({
   const camposLinea = campos.filter((c) => c.linea_id === producto.linea_id);
   const linea = lineas.find((l) => l.id === producto.linea_id);
   const soyHolder = !!celular && producto.holder_celular === celular;
+  const [guiaAbierta, setGuiaAbierta] = useState(false);
 
   const [pos, setPos] = useState<number | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -917,6 +923,7 @@ function DetalleProducto({
     : null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-cacao/50 sm:items-center sm:p-4" onClick={onCerrar}>
       <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-[var(--radius-marca)] bg-white sm:rounded-[var(--radius-marca)]" onClick={(e) => e.stopPropagation()}>
         <div className="relative">
@@ -1009,6 +1016,16 @@ function DetalleProducto({
             })}
           </ul>
 
+          {/* Guía de tallas de la tienda (si hay una para esta línea) */}
+          {guia && (
+            <button
+              onClick={() => setGuiaAbierta(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-miel-borde bg-white px-3 py-1.5 text-xs font-bold text-texto"
+            >
+              📏 Guía de tallas
+            </button>
+          )}
+
           {/* Botón según la relación del cliente con el producto */}
           <div className="space-y-2 pt-2">
             {producto.estado === "disponible" && (
@@ -1068,6 +1085,58 @@ function DetalleProducto({
         </div>
       </div>
     </div>
+
+    {/* Modal de la guía de tallas */}
+    {guiaAbierta && guia && (
+      <div
+        className="fixed inset-0 z-[60] flex items-end justify-center bg-cacao/60 sm:items-center sm:p-4"
+        onClick={() => setGuiaAbierta(false)}
+      >
+        <div
+          className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-[var(--radius-marca)] bg-white p-4 sm:rounded-[var(--radius-marca)]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="font-titulo text-lg text-durazno">📏 {guia.nombre}</h3>
+            <button
+              onClick={() => setGuiaAbierta(false)}
+              aria-label="Cerrar"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-miel-borde text-cacao"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  {guia.columnas.map((c, i) => (
+                    <th key={i} className="border border-miel-borde bg-miel/30 px-2 py-1.5 text-left font-bold text-texto">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {guia.filas.map((row, fi) => (
+                  <tr key={fi} className={fi % 2 ? "bg-crema/40" : ""}>
+                    {guia.columnas.map((_, ci) => (
+                      <td key={ci} className="border border-miel-borde px-2 py-1.5 text-texto">
+                        {row[ci] ?? ""}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-cacao">
+            Medidas de referencia. Si tienes dudas, escríbenos y te ayudamos a elegir la talla. 🍯
+          </p>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

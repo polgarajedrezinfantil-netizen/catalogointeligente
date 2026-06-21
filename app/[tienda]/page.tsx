@@ -4,7 +4,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { urlFoto } from "@/lib/fotos";
 import { temaStyle } from "@/lib/tema";
-import type { Campo, Linea, Nido, Producto, Tienda } from "@/lib/tipos";
+import type { Campo, GuiaTallas, Linea, Nido, Producto, Tienda } from "@/lib/tipos";
 import { CapturaCliente } from "./CapturaCliente";
 import { CatalogoCliente } from "./CatalogoCliente";
 import { BarraInferior } from "./BarraInferior";
@@ -65,12 +65,13 @@ export default async function CatalogoPublico({
   if (!tiendaData) notFound();
   const tienda = tiendaData as Tienda;
 
-  const [{ data: nidos }, { data: lineas }, { data: campos }, { data: productos }] =
+  const [{ data: nidos }, { data: lineas }, { data: campos }, { data: productos }, { data: guias }] =
     await Promise.all([
       supabase.from("nidos").select("*").eq("tienda_id", tienda.id).eq("activo", true).order("orden"),
       supabase.from("lineas_de_venta").select("*").eq("tienda_id", tienda.id).eq("archivada", false).order("orden"),
       supabase.from("campos_linea").select("*").eq("tienda_id", tienda.id).eq("es_filtro", true).eq("archivado", false).order("orden"),
       supabase.from("productos").select("*").eq("tienda_id", tienda.id).eq("oculto", false).order("orden", { ascending: true }).order("creado", { ascending: false }),
+      supabase.from("guias_tallas").select("*").eq("tienda_id", tienda.id).eq("activa", true).order("orden"),
     ]);
 
   const waUrl = tienda.whatsapp ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}` : null;
@@ -161,6 +162,7 @@ export default async function CatalogoPublico({
           lineas={(lineas ?? []) as Linea[]}
           campos={(campos ?? []) as Campo[]}
           productos={(productos ?? []) as Producto[]}
+          guias={(guias ?? []) as GuiaTallas[]}
         />
       </div>
 
