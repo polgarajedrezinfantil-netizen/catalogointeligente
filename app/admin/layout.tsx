@@ -18,7 +18,6 @@ const NAV_TIENDA = [
   { href: "/admin/nidos", nombre: "Nidos", lista: true },
   { href: "/admin/productos", nombre: "Productos", lista: true },
   { href: "/admin/identificar", nombre: "Identificar (IA)", lista: true },
-  { href: "/admin/dashboard", nombre: "Dashboard", lista: true },
   { href: "/admin/avisos", nombre: "Avisos", lista: true },
   { href: "/admin/clientes", nombre: "Clientes", lista: true },
   { href: "/admin/finanzas", nombre: "Finanzas", lista: false },
