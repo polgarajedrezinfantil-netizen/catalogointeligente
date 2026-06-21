@@ -109,6 +109,26 @@ export type Producto = {
   oculto: boolean;
   orden: number;
   precio_oferta: number | null;
+  pedido_id: string | null;
+};
+
+// Un pedido generado desde el carrito del cliente.
+export type PedidoItem = { producto_id: string; nombre: string; precio: number };
+export type Pedido = {
+  id: string;
+  tienda_id: string;
+  folio: number;
+  cliente_celular: string | null;
+  cliente_nombre: string | null;
+  cliente_correo: string | null;
+  items: PedidoItem[];
+  subtotal: number;
+  cupon: string | null;
+  descuento: number;
+  total: number;
+  estado: "pendiente" | "pagado" | "cancelado";
+  creado: string;
+  confirmado_en: string | null;
 };
 
 export type Campo = {

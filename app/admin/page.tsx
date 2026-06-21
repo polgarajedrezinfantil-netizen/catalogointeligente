@@ -74,6 +74,7 @@ export default async function AdminInicio() {
     { data: solicitudes },
     { data: tienda },
     { count: numClientes },
+    { count: pedidosPendientes },
   ] = await Promise.all([
     supabase.from("productos").select("*").eq("tienda_id", t),
     supabase.from("lineas_de_venta").select("*").eq("tienda_id", t),
@@ -82,6 +83,7 @@ export default async function AdminInicio() {
     supabase.from("solicitudes_cliente").select("texto, estado, creado").eq("tienda_id", t).order("creado", { ascending: false }),
     supabase.from("tiendas").select("etiqueta_precio").eq("id", t).single(),
     supabase.from("clientes").select("id", { count: "exact", head: true }).eq("tienda_id", t),
+    supabase.from("pedidos").select("id", { count: "exact", head: true }).eq("tienda_id", t).eq("estado", "pendiente"),
   ]);
 
   const productos = (prodData ?? []) as Producto[];
@@ -132,6 +134,23 @@ export default async function AdminInicio() {
       <h1 className="font-titulo text-2xl text-durazno">
         Hola, {perfil.nombre} 🍯
       </h1>
+
+      {/* Aviso de pedidos pendientes (llaman a la acción) */}
+      {(pedidosPendientes ?? 0) > 0 && (
+        <Link
+          href="/admin/pedidos"
+          className="flex items-center gap-3 rounded-[var(--radius-marca)] border border-durazno bg-durazno/10 p-4 transition hover:bg-durazno/20"
+        >
+          <span className="text-2xl">🧾</span>
+          <span className="flex-1">
+            <span className="block font-titulo text-lg text-coral">
+              {pedidosPendientes} {pedidosPendientes === 1 ? "pedido pendiente" : "pedidos pendientes"} de pago
+            </span>
+            <span className="block text-sm text-cacao">Revísalos y confirma el pago para marcarlos como vendidos.</span>
+          </span>
+          <span className="text-cacao">→</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Tarjeta titulo="Productos" valor={String(productos.length)} sub={`${existentes.length} por vender`} />

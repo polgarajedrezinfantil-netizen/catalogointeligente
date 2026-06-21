@@ -17,6 +17,7 @@ const NAV_TIENDA = [
   { href: "/admin/apariencia", nombre: "Apariencia", lista: true },
   { href: "/admin/nidos", nombre: "Nidos", lista: true },
   { href: "/admin/productos", nombre: "Productos", lista: true },
+  { href: "/admin/pedidos", nombre: "🧾 Pedidos", lista: true },
   { href: "/admin/identificar", nombre: "Identificar (IA)", lista: true },
   { href: "/admin/avisos", nombre: "Avisos", lista: true },
   { href: "/admin/clientes", nombre: "Clientes", lista: true },

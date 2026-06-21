@@ -504,7 +504,12 @@ function Carrito({
 }) {
   const supabase = createClient();
   const total = items.reduce((s, p) => s + (precioEfectivo(p) || 0), 0);
-  const cel = datosClienteLocal(tienda.id)?.celular ?? "";
+  const datosCli = datosClienteLocal(tienda.id);
+  const cel = datosCli?.celular ?? "";
+  const nombreCli = datosCli?.nombre ?? "";
+  // Prendas recién apartadas vs. las que ya entraron a un pedido ("en firme").
+  const nuevos = items.filter((p) => p.estado === "apartada");
+  const enProceso = items.filter((p) => p.estado === "apartada_firme");
 
   // Cupón de descuento.
   const [codigo, setCodigo] = useState("");
@@ -541,20 +546,56 @@ function Carrito({
   const descuento = cupon ? Math.round((total * cupon.porcentaje) / 100) : 0;
   const totalFinal = total - descuento;
 
-  const waLink =
-    tienda.whatsapp && items.length > 0
-      ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
-          "¡Hola! Quiero estos productos que aparté:\n" +
-            items.map((p) => `• ${p.nombre} — ${tienda.simbolo}${precioEfectivo(p)}`).join("\n") +
-            (cupon
-              ? `\nSubtotal: ${tienda.simbolo}${total}\nCupón ${cupon.palabra} (-${cupon.porcentaje}%): -${tienda.simbolo}${descuento}`
-              : "") +
-            `\nTotal a pagar: ${tienda.simbolo}${totalFinal}` +
-            (cel ? `\nMi número: ${cel}` : "") +
-            (tienda.datosPago ? `\n\n💳 Datos para pagar:\n${tienda.datosPago}` : "") +
-            "\n\n¿Me confirmas disponibilidad y cómo continúo el pago? 🍯",
-        )}`
-      : null;
+  // Generar pedido: registra el pedido en el sistema y abre WhatsApp con el
+  // resumen para que la tienda coordine el pago. Las prendas quedan "En firme".
+  const [generando, setGenerando] = useState(false);
+  const [pedido, setPedido] = useState<{ folio: number } | null>(null);
+  const [errorPedido, setErrorPedido] = useState<string | null>(null);
+
+  function mensajePedido(folio: number) {
+    return (
+      `🧾 *Pedido #${folio}*` +
+      (nombreCli ? ` — ${nombreCli}` : "") +
+      "\n¡Hola! Quiero estas prendas:\n" +
+      items.map((p) => `• ${p.nombre} — ${tienda.simbolo}${precioEfectivo(p)}`).join("\n") +
+      (cupon
+        ? `\nSubtotal: ${tienda.simbolo}${total}\nCupón ${cupon.palabra} (-${cupon.porcentaje}%): -${tienda.simbolo}${descuento}`
+        : "") +
+      `\nTotal a pagar: ${tienda.simbolo}${totalFinal}` +
+      (cel ? `\nMi número: ${cel}` : "") +
+      (tienda.datosPago ? `\n\n💳 Datos para pagar:\n${tienda.datosPago}` : "") +
+      "\n\n¿Me confirmas y cómo continúo el pago? 🍯"
+    );
+  }
+
+  function abrirWhatsApp(folio: number) {
+    if (!tienda.whatsapp) return;
+    const url = `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
+      mensajePedido(folio),
+    )}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function generarPedido() {
+    if (items.length === 0 || generando) return;
+    setGenerando(true);
+    setErrorPedido(null);
+    const { data, error } = await supabase.rpc("crear_pedido", {
+      p_tienda: tienda.id,
+      p_celular: cel,
+      p_nombre: nombreCli,
+      p_ids: items.map((p) => p.id),
+      p_cupon: cupon?.palabra ?? null,
+    });
+    setGenerando(false);
+    const d = data as { ok?: boolean; folio?: number } | null;
+    if (error || !d?.ok) {
+      setErrorPedido("No se pudo generar el pedido. Intenta de nuevo.");
+      return;
+    }
+    setPedido({ folio: d.folio! });
+    abrirWhatsApp(d.folio!);
+  }
 
   return (
     <div
@@ -676,15 +717,64 @@ function Carrito({
             <p className="text-xs text-cacao">
               Quitar un producto lo libera para que vuelva a quedar disponible.
             </p>
-            {waLink && (
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
-              >
-                Pedir por WhatsApp
-              </a>
+
+            {pedido ? (
+              // Pedido recién generado: confirmación + reabrir WhatsApp.
+              <div className="space-y-2 rounded-xl bg-verde-mielina/15 p-3 text-center">
+                <p className="font-producto font-bold text-[#3f5a1c]">
+                  ✅ ¡Pedido #{pedido.folio} generado!
+                </p>
+                <p className="text-xs text-cacao">
+                  La tienda ya tiene tu pedido. Coordina el pago por WhatsApp y te
+                  confirmamos en cuanto lo recibamos. 🍯
+                </p>
+                {tienda.whatsapp && (
+                  <button
+                    onClick={() => abrirWhatsApp(pedido.folio)}
+                    className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
+                  >
+                    Abrir WhatsApp de nuevo
+                  </button>
+                )}
+              </div>
+            ) : nuevos.length === 0 && enProceso.length > 0 ? (
+              // Ya hay un pedido en proceso con estas prendas.
+              <div className="space-y-2 rounded-xl bg-sol/15 p-3 text-center">
+                <p className="font-producto font-bold text-[#7a5414]">
+                  🧾 Tu pedido ya está en proceso
+                </p>
+                <p className="text-xs text-cacao">
+                  La tienda coordinará el pago contigo por WhatsApp y te confirma al recibirlo. 🍯
+                </p>
+                {tienda.whatsapp && (
+                  <a
+                    href={`https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
+                      `¡Hola! Quiero continuar el pago de mi pedido.${cel ? ` Mi número: ${cel}` : ""} 🍯`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
+                  >
+                    Escribir por WhatsApp
+                  </a>
+                )}
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={generarPedido}
+                  disabled={generando}
+                  className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white disabled:opacity-60"
+                >
+                  {generando ? "Generando…" : "Generar pedido 🧾"}
+                </button>
+                <p className="text-center text-xs text-cacao">
+                  Se crea tu pedido y se abre WhatsApp para coordinar el pago.
+                </p>
+                {errorPedido && (
+                  <p className="text-center text-xs text-durazno">{errorPedido}</p>
+                )}
+              </>
             )}
           </div>
         )}
