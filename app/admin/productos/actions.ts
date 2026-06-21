@@ -128,6 +128,37 @@ export async function actualizarProducto(
   return { ok: true, mensaje: "Producto actualizado." };
 }
 
+export type EstadoRapido = { ok: boolean; mensaje: string } | null;
+
+// Edición rápida desde la Vista Cliente: nombre, precio, oferta y ocultar.
+export async function editarRapido(formData: FormData): Promise<EstadoRapido> {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  const id = String(formData.get("producto_id"));
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const precio = Number(formData.get("precio") ?? 0);
+  const oferta = leerOferta(formData);
+  const oculto = formData.get("oculto") === "on";
+  const err = validar({ nombre, precio, costo: 0, oferta });
+  if (err) return { ok: false, mensaje: err };
+
+  const { error } = await supabase
+    .from("productos")
+    .update({
+      nombre,
+      precio,
+      precio_oferta: oferta,
+      oculto,
+      actualizado: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("tienda_id", tienda_id);
+  if (error) return { ok: false, mensaje: error.message };
+  revalidatePath("/admin/vista");
+  revalidatePath("/admin/productos");
+  return { ok: true, mensaje: "Guardado ✅" };
+}
+
 // Duplica un producto (queda oculto para revisarlo antes de mostrarlo).
 export async function duplicarProducto(formData: FormData) {
   const tienda_id = await tiendaDelAdmin();

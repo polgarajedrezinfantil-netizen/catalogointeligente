@@ -3,8 +3,8 @@ import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { urlFoto } from "@/lib/fotos";
 import type { Campo, Linea, Nido, Producto, EstadoProducto } from "@/lib/tipos";
+import Link from "next/link";
 import { FormProducto } from "./FormProducto";
-import { OrdenarProductos } from "./OrdenarProductos";
 import {
   crearProducto,
   actualizarProducto,
@@ -96,24 +96,22 @@ export default async function ProductosPage() {
         </div>
       </details>
 
-      {/* Ordenar el catálogo */}
-      {productos.length > 1 && (
-        <details className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4">
-          <summary className="cursor-pointer font-titulo text-lg text-coral">
-            ↕️ Ordenar catálogo
-          </summary>
-          <p className="mb-3 mt-2 text-sm text-cacao">
-            Arrastra (o usa ↑↓) para cambiar el orden en que aparecen las prendas
-            en el catálogo. Luego toca <strong>Guardar orden</strong>.
-          </p>
-          <OrdenarProductos
-            inicial={productos.map((p) => ({
-              id: p.id,
-              nombre: p.nombre,
-              foto: p.fotos[0] ?? null,
-            }))}
-          />
-        </details>
+      {/* Ver, ordenar y editar como cliente */}
+      {productos.length > 0 && (
+        <Link
+          href="/admin/vista"
+          className="flex items-center gap-3 rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4 transition hover:bg-miel/20"
+        >
+          <span className="text-2xl">👁️</span>
+          <span className="flex-1">
+            <span className="block font-titulo text-lg text-coral">Vista cliente</span>
+            <span className="block text-sm text-cacao">
+              Mira tu catálogo como tu cliente y <strong>reordena arrastrando</strong> o
+              <strong> edita</strong> precios, ofertas y más, ahí mismo.
+            </span>
+          </span>
+          <span className="text-cacao">→</span>
+        </Link>
       )}
 
       {/* Lista */}

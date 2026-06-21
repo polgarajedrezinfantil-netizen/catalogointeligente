@@ -12,6 +12,7 @@ const NAV_SUPER = [
 // Navegación del ADMIN/DELEGADO de una tienda. Se activan por fase.
 const NAV_TIENDA = [
   { href: "/admin", nombre: "Inicio", lista: true },
+  { href: "/admin/vista", nombre: "👁️ Vista cliente", lista: true },
   { href: "/admin/configuracion", nombre: "Configuración", lista: true },
   { href: "/admin/apariencia", nombre: "Apariencia", lista: true },
   { href: "/admin/nidos", nombre: "Nidos", lista: true },
