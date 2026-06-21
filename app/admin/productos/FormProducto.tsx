@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { SubirFotos } from "@/components/SubirFotos";
 import { SelectorTallas } from "./SelectorTallas";
 import { SelectorColores } from "./SelectorColores";
@@ -19,6 +19,7 @@ type Props = {
   accion: (prev: EstadoProd, fd: FormData) => Promise<EstadoProd>;
   producto?: Producto; // modo edición
   onListo?: () => void;
+  formId?: string;
 };
 
 // Formulario de alta/edición de producto. Muestra los campos de la línea
@@ -31,11 +32,17 @@ export function FormProducto({
   gananciaDefault,
   accion,
   producto,
+  onListo,
+  formId,
 }: Props) {
   const [estado, action, pendiente] = useActionState<EstadoProd, FormData>(
     accion,
     null,
   );
+  // Al guardar bien, avisa al contenedor (p. ej. para cerrar el modal).
+  useEffect(() => {
+    if (estado?.ok) onListo?.();
+  }, [estado, onListo]);
   const [lineaId, setLineaId] = useState(producto?.linea_id ?? lineas[0]?.id ?? "");
   const [costo, setCosto] = useState(producto ? String(producto.costo) : "");
   const [precio, setPrecio] = useState(producto ? String(producto.precio) : "");
@@ -62,6 +69,7 @@ export function FormProducto({
   return (
     <form
       action={action}
+      id={formId}
       className="grid gap-3 rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4 sm:grid-cols-2"
     >
       {producto && <input type="hidden" name="producto_id" value={producto.id} />}

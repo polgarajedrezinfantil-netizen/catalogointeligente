@@ -159,6 +159,80 @@ export async function editarRapido(formData: FormData): Promise<EstadoRapido> {
   return { ok: true, mensaje: "Guardado ✅" };
 }
 
+// Carga masiva: crea varios productos de golpe (desde un PDF).
+// Nido: cada item trae nido_id (existente) o nido_nuevo=true; si hay nuevos,
+// se crea UN nido (con nuevoNidoNombre) y todos esos productos van ahí.
+export async function crearProductosImportados(
+  formData: FormData,
+): Promise<EstadoRapido> {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+
+  let payload: {
+    nuevoNidoNombre?: string;
+    items?: {
+      nombre: string;
+      precio: number;
+      stock: number;
+      genero: string | null;
+      linea_id: string | null;
+      nido_id: string | null;
+      nido_nuevo: boolean;
+      fotoPath: string | null;
+    }[];
+  };
+  try {
+    payload = JSON.parse(String(formData.get("payload") ?? "{}"));
+  } catch {
+    return { ok: false, mensaje: "Datos inválidos." };
+  }
+  const items = payload.items ?? [];
+  if (items.length === 0) return { ok: false, mensaje: "No hay productos para cargar." };
+
+  // Crea el nido nuevo si algún producto lo necesita.
+  let nuevoNidoId: string | null = null;
+  if (items.some((i) => i.nido_nuevo)) {
+    const nombre = String(payload.nuevoNidoNombre ?? "").trim() || "Nuevo";
+    const { count } = await supabase
+      .from("nidos")
+      .select("id", { count: "exact", head: true })
+      .eq("tienda_id", tienda_id);
+    const { data, error } = await supabase
+      .from("nidos")
+      .insert({
+        tienda_id,
+        nombre,
+        fecha: new Date().toISOString().slice(0, 10),
+        orden: (count ?? 0) + 1,
+        es_nuevo: true,
+        activo: true,
+      })
+      .select("id")
+      .single();
+    if (error) return { ok: false, mensaje: "No se pudo crear el nido nuevo: " + error.message };
+    nuevoNidoId = data.id;
+  }
+
+  const rows = items.map((i) => ({
+    tienda_id,
+    nombre: String(i.nombre || "Producto").trim(),
+    precio: Number(i.precio) || 0,
+    costo: 0,
+    cantidad: Number(i.stock) || 1,
+    genero: i.genero || null,
+    linea_id: i.linea_id || null,
+    nido_id: i.nido_nuevo ? nuevoNidoId : i.nido_id || null,
+    fotos: i.fotoPath ? [i.fotoPath] : [],
+    atributos: {},
+    estado: "disponible" as const,
+  }));
+
+  const { error } = await supabase.from("productos").insert(rows);
+  if (error) return { ok: false, mensaje: error.message };
+  revalidatePath("/admin/productos");
+  return { ok: true, mensaje: `Se cargaron ${rows.length} productos 🍯` };
+}
+
 // Duplica un producto (queda oculto para revisarlo antes de mostrarlo).
 export async function duplicarProducto(formData: FormData) {
   const tienda_id = await tiendaDelAdmin();
