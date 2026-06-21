@@ -199,6 +199,17 @@ export function CatalogoCliente({
     });
   }
 
+  // Deep-link: si llegan con ?p=<id> (desde un producto compartido), ábrelo.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("p");
+    if (!p) return;
+    verProducto(p);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("p");
+    window.history.replaceState({}, "", url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Orden estilo historias: los NO vistos primero (con anillo y "Nuevo"),
   // los vistos se recorren a la derecha (en gris).
   const nidosOrdenados = useMemo(() => {
@@ -922,6 +933,21 @@ function DetalleProducto({
     ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`¡Hola! Aparté "${producto.nombre}" (${tienda.simbolo}${precioEfectivo(producto)}). Mi número: ${celular}`)}`
     : null;
 
+  // Compartir el producto con su preview propia (/p/<id>): menú nativo o WhatsApp.
+  async function compartir() {
+    const full = `${window.location.origin}/p/${producto.id}`;
+    const texto = `Mira "${producto.nombre}" (${tienda.simbolo}${precioEfectivo(producto)}):`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: producto.nombre, text: texto, url: full });
+      } catch {
+        /* cancelado */
+      }
+      return;
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${texto} ${full}`)}`, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-cacao/50 sm:items-center sm:p-4" onClick={onCerrar}>
@@ -940,7 +966,14 @@ function DetalleProducto({
         <div className="space-y-2 p-4">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-producto text-xl font-bold text-texto">{producto.nombre}</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={compartir}
+                aria-label="Compartir producto"
+                className="text-xl leading-none"
+              >
+                📤
+              </button>
               <button
                 onClick={onFavorito}
                 aria-label={esFavorito ? "Quitar de favoritos" : "Guardar en favoritos"}
