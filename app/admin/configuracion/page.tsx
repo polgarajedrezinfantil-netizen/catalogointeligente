@@ -17,6 +17,7 @@ import {
   crearCupon,
   alternarCupon,
   borrarCupon,
+  guardarAviso,
 } from "./actions";
 
 type Cupon = {
@@ -556,6 +557,56 @@ export default async function ConfiguracionPage() {
             <p className="py-2 text-cacao">Aún no tienes cupones. Crea el primero arriba.</p>
           )}
         </div>
+      </section>
+
+      {/* ---------- Banner de novedades + cupón visible ---------- */}
+      <section className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-5">
+        <h2 className="mb-1 font-titulo text-lg text-coral">Banner de novedades</h2>
+        <p className="mb-4 text-sm text-cacao">
+          Un mensaje que aparece arriba del catálogo (promo, envíos, novedades…). Puedes
+          destacar un <strong>cupón</strong> para que el cliente lo vea y lo copie.
+        </p>
+
+        <form action={guardarAviso} className="grid gap-4">
+          <label className="flex items-center gap-2 text-sm font-semibold text-cacao">
+            <input type="checkbox" name="aviso_activo" defaultChecked={tienda.aviso_activo} />
+            Mostrar el banner en el catálogo
+          </label>
+
+          <label className="text-sm font-semibold text-cacao">
+            Mensaje
+            <textarea
+              name="aviso_texto"
+              rows={2}
+              defaultValue={tienda.aviso_texto ?? ""}
+              placeholder="Ej. 🎉 ¡Nuevos Nidos cada semana! Envíos a todo Juárez"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+          </label>
+
+          <label className="text-sm font-semibold text-cacao">
+            Cupón a destacar (opcional)
+            <select
+              name="aviso_cupon"
+              defaultValue={tienda.aviso_cupon ?? ""}
+              className={`mt-1 block w-full sm:w-72 ${inputCls}`}
+            >
+              <option value="">— Ninguno —</option>
+              {cupones.map((c) => (
+                <option key={c.id} value={c.palabra}>
+                  {c.palabra} (-{c.porcentaje}%){c.activo ? "" : " · inactivo"}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-cacao">
+              Se muestra el código para copiar. Crea o activa el cupón arriba para que funcione al escribirlo.
+            </span>
+          </label>
+
+          <button className="w-fit rounded-full bg-verde-mielina px-5 py-2 font-bold text-white">
+            Guardar banner
+          </button>
+        </form>
       </section>
     </div>
   );

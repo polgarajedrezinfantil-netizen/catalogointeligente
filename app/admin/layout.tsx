@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
 import { cerrarSesion } from "./actions";
 import { LogoMamielina } from "@/components/marca/Elementos";
+
+// Etiqueta de la pestaña del navegador en todo el panel.
+export const metadata: Metadata = {
+  title: "Panel de administración",
+};
 
 // Navegación del SUPERADMIN (gestiona todas las tiendas del SaaS).
 const NAV_SUPER = [

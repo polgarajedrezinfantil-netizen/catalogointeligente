@@ -95,6 +95,24 @@ export async function guardarContacto(formData: FormData) {
   revalidatePath("/admin/configuracion");
 }
 
+// ---------------- Banner de novedades + cupón visible ----------------
+export async function guardarAviso(formData: FormData) {
+  const tienda_id = await tiendaDelAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tiendas")
+    .update({
+      aviso_activo: formData.get("aviso_activo") === "on",
+      aviso_texto: textoONull(formData.get("aviso_texto")),
+      aviso_cupon: textoONull(formData.get("aviso_cupon")),
+      actualizado: new Date().toISOString(),
+    })
+    .eq("id", tienda_id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/[tienda]", "page");
+}
+
 // ---------------- Líneas de venta ----------------
 export async function crearLinea(formData: FormData) {
   const tienda_id = await tiendaDelAdmin();

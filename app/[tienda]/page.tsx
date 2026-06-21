@@ -8,6 +8,7 @@ import type { Campo, GuiaTallas, Linea, Nido, Producto, Tienda } from "@/lib/tip
 import { CapturaCliente } from "./CapturaCliente";
 import { CatalogoCliente } from "./CatalogoCliente";
 import { BarraInferior } from "./BarraInferior";
+import { BannerNovedades } from "./BannerNovedades";
 import type { ComponentType } from "react";
 import { IconoMaps, IconoWhatsApp, IconoInstagram, IconoFacebook, IconoTikTok } from "@/components/IconosMarca";
 
@@ -73,6 +74,19 @@ export default async function CatalogoPublico({
       supabase.from("productos").select("*").eq("tienda_id", tienda.id).eq("oculto", false).order("orden", { ascending: true }).order("creado", { ascending: false }),
       supabase.from("guias_tallas").select("*").eq("tienda_id", tienda.id).eq("activa", true).order("orden"),
     ]);
+
+  // % del cupón destacado (si está activo) para mostrarlo en el banner.
+  let avisoPct: number | null = null;
+  if (tienda.aviso_activo && tienda.aviso_cupon) {
+    const { data: cup } = await supabase
+      .from("cupones")
+      .select("porcentaje")
+      .eq("tienda_id", tienda.id)
+      .eq("activo", true)
+      .ilike("palabra", tienda.aviso_cupon.trim())
+      .maybeSingle();
+    avisoPct = cup ? Number(cup.porcentaje) : null;
+  }
 
   const waUrl = tienda.whatsapp ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}` : null;
   const marca = tienda.nombre.split(" - ")[0];
@@ -152,6 +166,16 @@ export default async function CatalogoPublico({
             </a>
           ))}
         </div>
+      )}
+
+      {/* Banner de novedades + cupón visible */}
+      {tienda.aviso_activo && (
+        <BannerNovedades
+          tiendaId={tienda.id}
+          texto={tienda.aviso_texto}
+          cupon={tienda.aviso_cupon}
+          porcentaje={avisoPct}
+        />
       )}
 
       {/* Contenido */}

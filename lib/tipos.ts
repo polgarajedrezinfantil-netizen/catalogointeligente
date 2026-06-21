@@ -48,6 +48,9 @@ export type Tienda = {
   og_descripcion: string | null;
   tema: Record<string, string>;
   inversion_manual: number | null;
+  aviso_texto: string | null;
+  aviso_cupon: string | null;
+  aviso_activo: boolean;
 };
 
 // Guía de tallas: tabla de referencia (encabezados + filas de celdas).
