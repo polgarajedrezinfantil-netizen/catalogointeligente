@@ -61,3 +61,34 @@ export const TENANTS: Record<string, ConfigTenant> = {
 export function configTenant(slug: string): ConfigTenant | null {
   return TENANTS[slug] ?? null;
 }
+
+/**
+ * Carga la config del agente de una tienda DESDE LA BASE DE DATOS (tabla
+ * agente_config). Si la tienda aún no fue dada de alta en BD, cae al mapa
+ * hardcodeado TENANTS (respaldo transitorio mientras se migran las tiendas).
+ * Usa la SERVICE ROLE (runtime sin sesión).
+ */
+export async function cargarConfigTenant(
+  tiendaId: string,
+  slug: string,
+): Promise<ConfigTenant | null> {
+  const { createServiceClient } = await import("@/lib/supabase/service");
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("agente_config")
+    .select("activa, marca, guardarrailes_extra, origen, tallas")
+    .eq("tienda_id", tiendaId)
+    .maybeSingle();
+
+  if (data && data.marca && (data.marca as { nombre?: string }).nombre) {
+    return {
+      tenant_id: slug,
+      activa: !!data.activa,
+      marca: data.marca as ConfigTenant["marca"],
+      guardarrailes_extra: (data.guardarrailes_extra as string[]) ?? [],
+      origen: (data.origen as ConfigTenant["origen"]) ?? undefined,
+      tallas: (data.tallas as string | null) ?? undefined,
+    };
+  }
+  return TENANTS[slug] ?? null;
+}

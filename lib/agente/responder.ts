@@ -1,7 +1,7 @@
 // Orquestador del agente, agnóstico de canal. Lo llaman por igual la simulación
 // y (en el futuro) el webhook de WhatsApp/Messenger/Instagram.
 
-import { configTenant } from "./tenants";
+import { cargarConfigTenant } from "./tenants";
 import { construirSistema } from "./core";
 import { correrAgente } from "./claude";
 import {
@@ -36,7 +36,7 @@ export async function responder(params: {
   const tienda = await obtenerTiendaPorSlug(tiendaSlug);
   if (!tienda) throw new Error(`Tienda no encontrada o inactiva: ${tiendaSlug}`);
 
-  const cfg = configTenant(tiendaSlug);
+  const cfg = await cargarConfigTenant(tienda.id, tienda.slug);
   if (!cfg) throw new Error(`La tienda ${tiendaSlug} no tiene config de agente`);
 
   const conv = await cargarOCrearConversacion({
