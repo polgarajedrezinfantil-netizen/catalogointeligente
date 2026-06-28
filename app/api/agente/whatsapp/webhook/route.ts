@@ -30,7 +30,9 @@ export async function GET(req: Request) {
 /** Valida X-Hub-Signature-256 (HMAC-SHA256 del body crudo con el App Secret). */
 function firmaValida(req: Request, rawBody: string): boolean {
   const secret = process.env.META_APP_SECRET;
-  if (!secret) return true; // sin secreto configurado: no bloqueamos (dev)
+  // Sin secreto: permitimos en dev, pero en producción fallamos cerrado
+  // (un olvido de configuración no debe abrir el webhook).
+  if (!secret) return process.env.NODE_ENV !== "production";
   const firma = req.headers.get("x-hub-signature-256");
   if (!firma?.startsWith("sha256=")) return false;
   const esperado =

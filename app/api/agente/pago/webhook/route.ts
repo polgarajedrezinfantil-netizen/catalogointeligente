@@ -12,7 +12,8 @@ export const runtime = "nodejs";
 /** Verifica x-signature según el esquema HMAC-SHA256 de Mercado Pago. */
 function firmaValida(req: Request, dataId: string): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) return true; // sin secreto configurado: no bloqueamos (dev)
+  // Sin secreto: permitimos en dev, pero en producción fallamos cerrado.
+  if (!secret) return process.env.NODE_ENV !== "production";
 
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id") ?? "";
