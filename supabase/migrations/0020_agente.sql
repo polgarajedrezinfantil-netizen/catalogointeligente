@@ -3,71 +3,70 @@
 --  Mismo SaaS multi-tienda: aislamiento por `tienda_id` vía RLS, igual que
 --  el catálogo. El agente reusa `tiendas`, `perfiles`, `pedidos` y el catálogo.
 --
---  Tablas:
---    canales         -> mapea un identificador de canal Meta (WhatsApp/FB/IG)
---                       a una tienda. El router resuelve aquí a qué tenant
---                       pertenece cada mensaje entrante.
---    conversaciones  -> un hilo agente<->cliente en un canal (con estado de
---                       handoff a humano).
---    mensajes        -> cada mensaje del hilo (cliente / agente / humano / sistema).
---    ventas_agente   -> ventas atribuidas a una conversación (liga a `pedidos`).
+--  Tablas (prefijo `agente_` para no chocar con tablas existentes como la
+--  `mensajes` del CRM):
+--    agente_canales        -> mapea un identificador de canal Meta a una tienda.
+--                             El router resuelve aquí a qué tenant pertenece.
+--    agente_conversaciones -> un hilo agente<->cliente en un canal (handoff).
+--    agente_mensajes       -> cada mensaje del hilo (cliente/agente/humano/sistema).
+--    agente_ventas         -> ventas atribuidas a una conversación (liga a pedidos).
 --
 --  Acceso:
 --    - superadmin: todo.
---    - admin/delegado: solo su tienda (lee/opera su bandeja).
+--    - admin/delegado: solo su tienda.
 --    - El RUNTIME (webhook, sin sesión) escribe con la SERVICE ROLE key, que
 --      salta RLS. Estas tablas NO son públicas (a diferencia del catálogo).
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- canales: a qué tienda pertenece cada identificador de canal de Meta.
+-- agente_canales: a qué tienda pertenece cada identificador de canal de Meta.
 --   external_id = whatsapp_phone_number_id | page_id_facebook | ig_account_id
 -- ---------------------------------------------------------------------
-create table if not exists public.canales (
+create table if not exists public.agente_canales (
   id          uuid primary key default gen_random_uuid(),
   tienda_id   uuid not null references public.tiendas (id) on delete cascade,
   tipo        text not null check (tipo in ('whatsapp','messenger','instagram')),
   external_id text not null,                       -- id del canal en Meta
   nombre      text,                                -- etiqueta legible
   activo      boolean not null default true,
-  config      jsonb not null default '{}'::jsonb,  -- overrides no sensibles (los secretos van cifrados, no aquí)
+  config      jsonb not null default '{}'::jsonb,  -- overrides no sensibles (secretos cifrados, no aquí)
   creado      timestamptz not null default now(),
   unique (tipo, external_id)                       -- un id de Meta -> una sola tienda
 );
 
-create index if not exists idx_canales_tienda on public.canales (tienda_id);
+create index if not exists idx_agente_canales_tienda on public.agente_canales (tienda_id);
 
 -- ---------------------------------------------------------------------
--- conversaciones: un hilo agente<->cliente en un canal.
+-- agente_conversaciones: un hilo agente<->cliente en un canal.
 --   estado: 'abierta' (la lleva el agente) | 'en_humano' (handoff) | 'cerrada'
 -- ---------------------------------------------------------------------
-create table if not exists public.conversaciones (
-  id                uuid primary key default gen_random_uuid(),
-  tienda_id         uuid not null references public.tiendas (id) on delete cascade,
-  canal_id          uuid references public.canales (id) on delete set null,
-  tipo_canal        text,                          -- denormalizado (whatsapp/messenger/instagram)
-  cliente_externo_id text not null,                -- id del cliente en el canal (wa id / PSID / ig id)
-  cliente_nombre    text,
-  cliente_celular   text,
-  estado            text not null default 'abierta'
-                      check (estado in ('abierta','en_humano','cerrada')),
-  asignado_a        uuid references public.perfiles (id) on delete set null, -- humano que tomó el control
-  ultimo_mensaje_en timestamptz not null default now(),
-  creado            timestamptz not null default now()
+create table if not exists public.agente_conversaciones (
+  id                 uuid primary key default gen_random_uuid(),
+  tienda_id          uuid not null references public.tiendas (id) on delete cascade,
+  canal_id           uuid references public.agente_canales (id) on delete set null,
+  tipo_canal         text,                          -- denormalizado (whatsapp/messenger/instagram)
+  cliente_externo_id text not null,                 -- id del cliente en el canal (wa id / PSID / ig id)
+  cliente_nombre     text,
+  cliente_celular    text,
+  estado             text not null default 'abierta'
+                       check (estado in ('abierta','en_humano','cerrada')),
+  asignado_a         uuid references public.perfiles (id) on delete set null, -- humano que tomó el control
+  ultimo_mensaje_en  timestamptz not null default now(),
+  creado             timestamptz not null default now()
 );
 
-create index if not exists idx_conv_tienda on public.conversaciones (tienda_id);
-create index if not exists idx_conv_bandeja on public.conversaciones (tienda_id, ultimo_mensaje_en desc);
-create index if not exists idx_conv_cliente on public.conversaciones (canal_id, cliente_externo_id);
+create index if not exists idx_agente_conv_tienda on public.agente_conversaciones (tienda_id);
+create index if not exists idx_agente_conv_bandeja on public.agente_conversaciones (tienda_id, ultimo_mensaje_en desc);
+create index if not exists idx_agente_conv_cliente on public.agente_conversaciones (canal_id, cliente_externo_id);
 
 -- ---------------------------------------------------------------------
--- mensajes: cada mensaje del hilo. `tienda_id` denormalizado para RLS simple.
+-- agente_mensajes: cada mensaje del hilo. `tienda_id` denormalizado para RLS.
 --   rol: 'cliente' | 'agente' | 'humano' | 'sistema'
 --   external_id: id del mensaje en Meta (dedupe de entrantes / idempotencia).
 -- ---------------------------------------------------------------------
-create table if not exists public.mensajes (
+create table if not exists public.agente_mensajes (
   id              uuid primary key default gen_random_uuid(),
-  conversacion_id uuid not null references public.conversaciones (id) on delete cascade,
+  conversacion_id uuid not null references public.agente_conversaciones (id) on delete cascade,
   tienda_id       uuid not null references public.tiendas (id) on delete cascade,
   rol             text not null check (rol in ('cliente','agente','humano','sistema')),
   contenido       text,
@@ -77,19 +76,19 @@ create table if not exists public.mensajes (
   creado          timestamptz not null default now()
 );
 
-create index if not exists idx_msg_conv on public.mensajes (conversacion_id, creado);
-create index if not exists idx_msg_tienda on public.mensajes (tienda_id);
-create unique index if not exists uq_msg_external on public.mensajes (external_id)
+create index if not exists idx_agente_msg_conv on public.agente_mensajes (conversacion_id, creado);
+create index if not exists idx_agente_msg_tienda on public.agente_mensajes (tienda_id);
+create unique index if not exists uq_agente_msg_external on public.agente_mensajes (external_id)
   where external_id is not null;
 
 -- ---------------------------------------------------------------------
--- ventas_agente: ventas atribuidas a una conversación. Liga a `pedidos`.
+-- agente_ventas: ventas atribuidas a una conversación. Liga a `pedidos`.
 --   estado: 'propuesta' | 'link_enviado' | 'pagado' | 'cancelado'
 -- ---------------------------------------------------------------------
-create table if not exists public.ventas_agente (
+create table if not exists public.agente_ventas (
   id              uuid primary key default gen_random_uuid(),
   tienda_id       uuid not null references public.tiendas (id) on delete cascade,
-  conversacion_id uuid references public.conversaciones (id) on delete set null,
+  conversacion_id uuid references public.agente_conversaciones (id) on delete set null,
   pedido_id       uuid references public.pedidos (id) on delete set null,
   canal           text,
   monto           numeric not null default 0,
@@ -98,49 +97,49 @@ create table if not exists public.ventas_agente (
   creado          timestamptz not null default now()
 );
 
-create index if not exists idx_ventas_tienda on public.ventas_agente (tienda_id, creado desc);
+create index if not exists idx_agente_ventas_tienda on public.agente_ventas (tienda_id, creado desc);
 
 -- ---------------------------------------------------------------------
 -- RLS: superadmin todo; admin/delegado solo su tienda. Sin lectura pública.
 --      El runtime ingiere con la service role (salta RLS).
 -- ---------------------------------------------------------------------
-alter table public.canales        enable row level security;
-alter table public.conversaciones enable row level security;
-alter table public.mensajes       enable row level security;
-alter table public.ventas_agente  enable row level security;
+alter table public.agente_canales        enable row level security;
+alter table public.agente_conversaciones enable row level security;
+alter table public.agente_mensajes       enable row level security;
+alter table public.agente_ventas         enable row level security;
 
--- canales
-drop policy if exists canales_super on public.canales;
-create policy canales_super on public.canales for all
+-- agente_canales
+drop policy if exists agente_canales_super on public.agente_canales;
+create policy agente_canales_super on public.agente_canales for all
   using (public.es_superadmin()) with check (public.es_superadmin());
-drop policy if exists canales_tienda on public.canales;
-create policy canales_tienda on public.canales for all
+drop policy if exists agente_canales_tienda on public.agente_canales;
+create policy agente_canales_tienda on public.agente_canales for all
   using (tienda_id = public.mi_tienda_id())
   with check (tienda_id = public.mi_tienda_id());
 
--- conversaciones
-drop policy if exists conv_super on public.conversaciones;
-create policy conv_super on public.conversaciones for all
+-- agente_conversaciones
+drop policy if exists agente_conv_super on public.agente_conversaciones;
+create policy agente_conv_super on public.agente_conversaciones for all
   using (public.es_superadmin()) with check (public.es_superadmin());
-drop policy if exists conv_tienda on public.conversaciones;
-create policy conv_tienda on public.conversaciones for all
+drop policy if exists agente_conv_tienda on public.agente_conversaciones;
+create policy agente_conv_tienda on public.agente_conversaciones for all
   using (tienda_id = public.mi_tienda_id())
   with check (tienda_id = public.mi_tienda_id());
 
--- mensajes
-drop policy if exists msg_super on public.mensajes;
-create policy msg_super on public.mensajes for all
+-- agente_mensajes
+drop policy if exists agente_msg_super on public.agente_mensajes;
+create policy agente_msg_super on public.agente_mensajes for all
   using (public.es_superadmin()) with check (public.es_superadmin());
-drop policy if exists msg_tienda on public.mensajes;
-create policy msg_tienda on public.mensajes for all
+drop policy if exists agente_msg_tienda on public.agente_mensajes;
+create policy agente_msg_tienda on public.agente_mensajes for all
   using (tienda_id = public.mi_tienda_id())
   with check (tienda_id = public.mi_tienda_id());
 
--- ventas_agente
-drop policy if exists ventas_super on public.ventas_agente;
-create policy ventas_super on public.ventas_agente for all
+-- agente_ventas
+drop policy if exists agente_ventas_super on public.agente_ventas;
+create policy agente_ventas_super on public.agente_ventas for all
   using (public.es_superadmin()) with check (public.es_superadmin());
-drop policy if exists ventas_tienda on public.ventas_agente;
-create policy ventas_tienda on public.ventas_agente for all
+drop policy if exists agente_ventas_tienda on public.agente_ventas;
+create policy agente_ventas_tienda on public.agente_ventas for all
   using (tienda_id = public.mi_tienda_id())
   with check (tienda_id = public.mi_tienda_id());
