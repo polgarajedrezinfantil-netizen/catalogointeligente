@@ -42,7 +42,11 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({
       conversacion_id: r.conversacionId,
-      respuesta: r.texto,
+      estado: r.estado,
+      atendido_por_agente: r.atendidoPorAgente,
+      respuesta: r.atendidoPorAgente
+        ? r.texto
+        : "(En atención humana — el agente no responde; un humano contesta desde la bandeja.)",
       herramientas: r.herramientas,
       usage: r.usage,
     });

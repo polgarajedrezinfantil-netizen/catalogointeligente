@@ -25,6 +25,8 @@ const NAV_TIENDA = [
   { href: "/admin/productos", nombre: "Productos", lista: true },
   { href: "/admin/tallas", nombre: "📏 Guía de tallas", lista: true },
   { href: "/admin/pedidos", nombre: "🧾 Pedidos", lista: true },
+  { href: "/admin/conversaciones", nombre: "💬 Conversaciones", lista: true },
+  { href: "/admin/agente", nombre: "📊 Métricas del agente", lista: true },
   { href: "/admin/identificar", nombre: "Identificar (IA)", lista: true },
   { href: "/admin/avisos", nombre: "Avisos", lista: true },
   { href: "/admin/clientes", nombre: "Clientes", lista: true },
