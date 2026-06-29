@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 const NAV_SUPER = [
   { href: "/admin", nombre: "Inicio", lista: true },
   { href: "/admin/tiendas", nombre: "Tiendas", lista: true },
+  { href: "/admin/agente/alta", nombre: "➕ Alta / Config agente", lista: true },
 ];
 
 // Navegación del ADMIN/DELEGADO de una tienda. Se activan por fase.
