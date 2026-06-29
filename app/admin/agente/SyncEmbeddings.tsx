@@ -3,7 +3,8 @@
 import { useState } from "react";
 
 // Botón para reindexar el catálogo en la búsqueda vectorial del agente.
-export function SyncEmbeddings() {
+// El superadmin debe indicar la tienda (slug); el admin de tienda usa la suya.
+export function SyncEmbeddings({ tiendaSlug }: { tiendaSlug?: string }) {
   const [estado, setEstado] = useState<"idle" | "cargando" | "ok" | "error">("idle");
   const [msg, setMsg] = useState("");
 
@@ -14,7 +15,7 @@ export function SyncEmbeddings() {
       const r = await fetch("/api/agente/embeddings/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify(tiendaSlug ? { tienda: tiendaSlug } : {}),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Error");

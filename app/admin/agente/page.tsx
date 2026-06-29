@@ -62,6 +62,8 @@ export default async function AgenteMetricasPage({
   const tiendas = esSuper
     ? ((await supabase.from("tiendas").select("id, nombre, slug").order("nombre")).data ?? [])
     : [];
+  // Slug de la tienda elegida (lo necesita el botón de reindexar para el superadmin).
+  const tiendaSlug = esSuper ? tiendas.find((x) => x.id === t)?.slug : undefined;
 
   if (esSuper && !t) {
     return (
@@ -76,7 +78,7 @@ export default async function AgenteMetricasPage({
   const [{ data, error }, { data: tienda }, { count: nIndexados }, { count: nProductos }] =
     await Promise.all([
       supabase.rpc("agente_metricas", { p_tienda: t, p_dias: dias }),
-      supabase.from("tiendas").select("etiqueta_precio").eq("id", t).single(),
+      supabase.from("tiendas").select("etiqueta_precio").eq("id", t).maybeSingle(),
       supabase
         .from("producto_embeddings")
         .select("producto_id", { count: "exact", head: true })
@@ -210,7 +212,7 @@ export default async function AgenteMetricasPage({
             <p className="mb-3 text-xs text-cacao">
               Reindexa cuando agregues o cambies productos para que la IA los encuentre.
             </p>
-            <SyncEmbeddings />
+            <SyncEmbeddings tiendaSlug={tiendaSlug} />
           </div>
         ) : (
           <p className="rounded-[var(--radius-marca)] border border-miel-borde bg-miel/15 p-4 text-sm text-[#7a5a14]">
