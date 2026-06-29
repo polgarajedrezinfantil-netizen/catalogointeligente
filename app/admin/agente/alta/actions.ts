@@ -79,6 +79,29 @@ export async function guardarConfigAgente(formData: FormData) {
     if (e2) throw new Error(`canal: ${e2.message}`);
   }
 
+  // Comisión del marketplace (solo el operador/superadmin la fija). Upsert que
+  // preserva los tokens MP existentes (solo toca comision_pct).
+  if (esSuper) {
+    const comision = Math.min(Math.max(Number(formData.get("comision_pct")) || 0, 0), 100);
+    await supabase
+      .from("agente_secretos")
+      .upsert({ tienda_id: tiendaId, comision_pct: comision }, { onConflict: "tienda_id" });
+  }
+
   revalidatePath("/admin/agente/alta");
   revalidatePath("/admin/agente");
+}
+
+/** Desconecta la cuenta de Mercado Pago de la tienda. */
+export async function desconectarMP(formData: FormData) {
+  const perfil = await getPerfil();
+  if (!perfil) throw new Error("No autorizado");
+  const esSuper = perfil.rol === "superadmin";
+  const tiendaId = esSuper ? String(formData.get("tienda_id") ?? "").trim() : perfil.tienda_id;
+  if (!tiendaId) throw new Error("Falta la tienda");
+  if (!esSuper && perfil.tienda_id !== tiendaId) throw new Error("No autorizado");
+
+  const { desconectarTienda } = await import("@/lib/agente/mp-oauth");
+  await desconectarTienda(tiendaId);
+  revalidatePath("/admin/agente/alta");
 }

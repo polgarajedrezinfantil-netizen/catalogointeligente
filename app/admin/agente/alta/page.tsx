@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { guardarConfigAgente } from "./actions";
+import { estadoMP, marketplaceConfigurado } from "@/lib/agente/mp-oauth";
+import { guardarConfigAgente, desconectarMP } from "./actions";
 import { SelectorTienda } from "./SelectorTienda";
+
+const MP_MSG: Record<string, { txt: string; ok: boolean }> = {
+  ok: { txt: "Mercado Pago conectado ✓", ok: true },
+  error: { txt: "No se pudo conectar Mercado Pago. Intenta de nuevo.", ok: false },
+  estado_invalido: { txt: "El enlace de conexión expiró. Vuelve a intentar.", ok: false },
+  sin_code: { txt: "Mercado Pago no devolvió la autorización.", ok: false },
+  sin_app: { txt: "Falta configurar la app de Marketplace (MP_CLIENT_ID/SECRET).", ok: false },
+  denegado: { txt: "No autorizado para conectar esta tienda.", ok: false },
+};
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +25,7 @@ type Origen = { ciudad?: string; zonas_envio?: Record<string, string> };
 export default async function AltaAgentePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tienda?: string }>;
+  searchParams: Promise<{ tienda?: string; mp?: string }>;
 }) {
   const perfil = await getPerfil();
   if (!perfil) return <p className="text-cacao">No autorizado.</p>;
@@ -38,19 +48,20 @@ export default async function AltaAgentePage({
   let cfg: { activa?: boolean; marca?: Marca; guardarrailes_extra?: string[]; origen?: Origen; tallas?: string } | null = null;
   let waPnid = "";
   let tiendaNombre = "";
-  let secretos: { mp_conectado?: boolean } | null = null;
+  let mp = { conectado: false, mp_user_id: null as string | null, comision_pct: 0 };
   if (tiendaId) {
-    const [{ data: c }, { data: canal }, { data: t }, { data: sec }] = await Promise.all([
+    const [{ data: c }, { data: canal }, { data: t }, estado] = await Promise.all([
       supabase.from("agente_config").select("activa, marca, guardarrailes_extra, origen, tallas").eq("tienda_id", tiendaId).maybeSingle(),
       supabase.from("agente_canales").select("external_id").eq("tienda_id", tiendaId).eq("tipo", "whatsapp").maybeSingle(),
       supabase.from("tiendas").select("nombre, slug").eq("id", tiendaId).maybeSingle(),
-      supabase.from("agente_secretos").select("mp_conectado").eq("tienda_id", tiendaId).maybeSingle(),
+      estadoMP(tiendaId),
     ]);
     cfg = c;
     waPnid = (canal?.external_id as string) ?? "";
     tiendaNombre = (t?.nombre as string) ?? "";
-    secretos = sec;
+    mp = estado;
   }
+  const mpBanner = sp.mp ? MP_MSG[sp.mp] : null;
 
   const m = (cfg?.marca ?? {}) as Marca;
   const o = (cfg?.origen ?? {}) as Origen;
@@ -65,6 +76,12 @@ export default async function AltaAgentePage({
           de datos — <strong>no hace falta tocar código</strong>.
         </p>
       </div>
+
+      {mpBanner && (
+        <p className={`rounded-xl p-3 text-sm font-semibold ${mpBanner.ok ? "bg-verde-mielina/20 text-[#3f5a1c]" : "bg-durazno/20 text-[#7a3a26]"}`}>
+          {mpBanner.txt}
+        </p>
+      )}
 
       {esSuper && (
         <div>
@@ -151,12 +168,48 @@ export default async function AltaAgentePage({
               <input name="wa_phone_number_id" defaultValue={waPnid} className={I} placeholder="Ej. 1156067710928309" />
               <p className="mt-1 text-xs text-cacao">El identificador del número (no el teléfono). Lo sacas de Meta → WhatsApp → Configuración de la API.</p>
             </div>
-            <div className="rounded-xl bg-crema/60 p-3 text-sm">
-              <span className="font-semibold text-texto">Mercado Pago:</span>{" "}
-              {secretos?.mp_conectado ? (
-                <span className="text-[#3f5a1c]">conectado ✓</span>
+            <div className="space-y-2 rounded-xl bg-crema/60 p-3 text-sm">
+              <p>
+                <span className="font-semibold text-texto">Mercado Pago:</span>{" "}
+                {mp.conectado ? (
+                  <span className="text-[#3f5a1c]">conectado ✓{mp.mp_user_id ? ` (cuenta ${mp.mp_user_id})` : ""}</span>
+                ) : (
+                  <span className="text-cacao">sin conectar</span>
+                )}
+              </p>
+              {mp.conectado ? (
+                <button
+                  formAction={desconectarMP}
+                  className="rounded-full border border-cacao/40 px-4 py-1.5 text-xs font-bold text-cacao"
+                >
+                  Desconectar
+                </button>
+              ) : marketplaceConfigurado() ? (
+                <a
+                  href={`/api/agente/mp/oauth/iniciar?tienda=${tiendaId}`}
+                  className="inline-block rounded-full bg-[#009ee3] px-4 py-1.5 text-xs font-bold text-white"
+                >
+                  Conectar Mercado Pago
+                </a>
               ) : (
-                <span className="text-cacao">sin conectar — el botón “Conectar Mercado Pago” se habilita en cuanto registremos la app Marketplace.</span>
+                <p className="text-xs text-cacao">
+                  El botón “Conectar” se habilita cuando registres tu app de Marketplace
+                  (variables MP_CLIENT_ID / MP_CLIENT_SECRET).
+                </p>
+              )}
+              {esSuper && (
+                <div className="pt-1">
+                  <label className={L}>Tu comisión por venta (%)</label>
+                  <input
+                    name="comision_pct"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    defaultValue={mp.comision_pct}
+                    className="w-28 rounded-xl border border-miel-borde bg-white px-3 py-1.5 text-sm text-texto"
+                  />
+                </div>
               )}
             </div>
           </section>

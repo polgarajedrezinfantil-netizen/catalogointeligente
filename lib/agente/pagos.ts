@@ -1,28 +1,16 @@
-// Cobro del agente (Fase 3): arma el pedido, crea la preferencia de pago en
-// Mercado Pago y registra la venta atribuida a la conversación.
+// Cobro del agente (Fase 3): arma el pedido, crea la preferencia de Mercado Pago
+// y registra la venta atribuida a la conversación.
 //
-// Flujo:
-//   crearLinkPago()  -> RPC crear_pedido_agente (pedido + reserva prendas)
-//                    -> POST /checkout/preferences (link de pago)
-//                    -> insert agente_ventas (estado 'link_enviado')
-//                    -> devuelve { ok, url, folio, total, pedidoId }
-//
-// El cobro entra a la cuenta de Mercado Pago de la TIENDA (MP_ACCESS_TOKEN).
-// Cuando el cliente paga, Mercado Pago llama a /api/agente/pago/webhook, que
-// invoca pagar_pedido_agente() para cerrar la venta.
+// Multi-tienda (Marketplace): usa el access_token de MP de CADA tienda (conectado
+// por OAuth) y le descuenta tu comisión (marketplace_fee). El dinero entra a la
+// cuenta del cliente. Si la tienda aún no conectó su MP, cae al MP_ACCESS_TOKEN
+// global (transición) sin comisión.
 
 import { createServiceClient } from "@/lib/supabase/service";
+import { baseUrl } from "./urls";
+import { accessTokenDe, comisionPct } from "./mp-oauth";
 
 const MP_API = "https://api.mercadopago.com/checkout/preferences";
-
-/** Base pública del sitio (para back_urls y el webhook de Mercado Pago). */
-function baseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
-    "https://myelplay.com"
-  ).replace(/\/$/, "");
-}
 
 type ItemPedido = { producto_id: string; nombre: string; precio: number };
 
@@ -49,8 +37,10 @@ export async function crearLinkPago(params: {
   productoIds: string[];
   cupon?: string;
 }): Promise<ResultadoCobro> {
-  const token = process.env.MP_ACCESS_TOKEN;
-  if (!token) return { ok: false, error: "cobro_no_configurado" };
+  // Token de cobro: el de la tienda (OAuth) o, en transición, el global.
+  const tokenTienda = await accessTokenDe(params.tiendaId);
+  const token = tokenTienda ?? process.env.MP_ACCESS_TOKEN ?? null;
+  if (!token) return { ok: false, error: "cobro_no_conectado" };
 
   const ids = (params.productoIds ?? [])
     .map((s) => String(s).trim())
@@ -80,10 +70,14 @@ export async function crearLinkPago(params: {
   const items = (pedido.items ?? []) as ItemPedido[];
   const omitidos = (pedido.omitidos ?? 0) as number;
 
-  // 2) Preferencia de pago en Mercado Pago.
+  // 2) Comisión del marketplace (solo si la tienda usa su propia cuenta).
+  const pct = tokenTienda ? await comisionPct(params.tiendaId) : 0;
+  const fee = pct > 0 ? Math.round((total * pct) / 100) : 0;
+
+  // 3) Preferencia de pago en Mercado Pago (con la cuenta del cliente).
   const base = baseUrl();
   const moneda = params.moneda || "MXN";
-  const preferencia = {
+  const preferencia: Record<string, unknown> = {
     items: items.map((it) => ({
       id: it.producto_id,
       title: it.nombre,
@@ -106,8 +100,10 @@ export async function crearLinkPago(params: {
       pending: `${base}/${params.tiendaSlug}?pago=pendiente&folio=${folio}`,
     },
     auto_return: "approved",
-    notification_url: `${base}/api/agente/pago/webhook`,
+    // El webhook necesita saber la tienda para usar SU token al consultar el pago.
+    notification_url: `${base}/api/agente/pago/webhook?t=${params.tiendaId}`,
   };
+  if (fee > 0) preferencia.marketplace_fee = fee;
 
   let url: string;
   try {
@@ -116,17 +112,13 @@ export async function crearLinkPago(params: {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        // Evita preferencias duplicadas si reintentamos por el mismo pedido.
         "X-Idempotency-Key": `pref-${pedidoId}`,
       },
       body: JSON.stringify(preferencia),
     });
     const data = await resp.json();
     if (!resp.ok) {
-      return {
-        ok: false,
-        error: `mercadopago: ${data?.message ?? resp.status}`,
-      };
+      return { ok: false, error: `mercadopago: ${data?.message ?? resp.status}` };
     }
     url = (data.init_point as string) || (data.sandbox_init_point as string);
     if (!url) return { ok: false, error: "mercadopago: sin_link" };
@@ -137,7 +129,7 @@ export async function crearLinkPago(params: {
     };
   }
 
-  // 3) Registra la venta atribuida a la conversación.
+  // 4) Registra la venta atribuida a la conversación.
   await supabase.from("agente_ventas").insert({
     tienda_id: params.tiendaId,
     conversacion_id: params.conversacionId,
