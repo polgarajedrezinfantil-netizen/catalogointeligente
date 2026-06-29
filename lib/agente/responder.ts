@@ -63,9 +63,9 @@ export async function responder(params: {
     externalId,
   });
 
-  // Handoff: si una persona tomó la conversación (o está cerrada), el agente
-  // NO responde para no hablar encima del humano.
-  if (conv.estado !== "abierta") {
+  // El agente NO responde si la tienda no está activa (alta a medio configurar),
+  // o si una persona tomó la conversación / está cerrada (handoff).
+  if (!cfg.activa || conv.estado !== "abierta") {
     return {
       conversacionId: conv.id,
       estado: conv.estado,
