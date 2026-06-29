@@ -46,3 +46,23 @@ h2,
 h3 {
   font-family: var(--font-titulo), system-ui, sans-serif;
 }
+
+/* =====================================================================
+   PANEL "MyelPlay Agentes" — re-skin NEUTRAL del administrador.
+   Sobreescribe los tokens de marca SOLO dentro de .admin-shell: el panel se ve
+   moderno/neutro (slate + índigo) sin tocar las tiendas de clientes, que
+   conservan su propia identidad (sus storefronts viven fuera de .admin-shell).
+   ===================================================================== */
+.admin-shell {
+  --color-crema: #f1f5f9; /* lienzo / fondo del panel */
+  --color-miel: #e2e8f0; /* fondos suaves */
+  --color-miel-borde: #e2e8f0; /* bordes / divisores */
+  --color-verde-mielina: #10b981; /* éxito · disponible · ingresos */
+  --color-durazno: #4f46e5; /* títulos · primario */
+  --color-sol: #f59e0b; /* precios · aviso */
+  --color-cacao: #64748b; /* texto secundario */
+  --color-texto: #0f172a; /* texto principal */
+  --color-coral: #4338ca; /* títulos de sección */
+  --font-titulo: var(--font-cuerpo);
+  --font-mano: var(--font-cuerpo);
+}

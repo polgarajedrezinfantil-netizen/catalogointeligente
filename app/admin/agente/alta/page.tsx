@@ -47,17 +47,22 @@ export default async function AltaAgentePage({
   // Precarga de config + canal + nombre de la tienda
   let cfg: { activa?: boolean; marca?: Marca; guardarrailes_extra?: string[]; origen?: Origen; tallas?: string } | null = null;
   let waPnid = "";
+  let igId = "";
+  let fbPageId = "";
   let tiendaNombre = "";
   let mp = { conectado: false, mp_user_id: null as string | null, comision_pct: 0 };
   if (tiendaId) {
-    const [{ data: c }, { data: canal }, { data: t }, estado] = await Promise.all([
+    const [{ data: c }, { data: canales }, { data: t }, estado] = await Promise.all([
       supabase.from("agente_config").select("activa, marca, guardarrailes_extra, origen, tallas").eq("tienda_id", tiendaId).maybeSingle(),
-      supabase.from("agente_canales").select("external_id").eq("tienda_id", tiendaId).eq("tipo", "whatsapp").maybeSingle(),
+      supabase.from("agente_canales").select("tipo, external_id").eq("tienda_id", tiendaId),
       supabase.from("tiendas").select("nombre, slug").eq("id", tiendaId).maybeSingle(),
       estadoMP(tiendaId),
     ]);
     cfg = c;
-    waPnid = (canal?.external_id as string) ?? "";
+    const canalMap = new Map((canales ?? []).map((k) => [k.tipo as string, k.external_id as string]));
+    waPnid = canalMap.get("whatsapp") ?? "";
+    igId = canalMap.get("instagram") ?? "";
+    fbPageId = canalMap.get("messenger") ?? "";
     tiendaNombre = (t?.nombre as string) ?? "";
     mp = estado;
   }
@@ -168,6 +173,24 @@ export default async function AltaAgentePage({
               <input name="wa_phone_number_id" defaultValue={waPnid} className={I} placeholder="Ej. 1156067710928309" />
               <p className="mt-1 text-xs text-cacao">El identificador del número (no el teléfono). Lo sacas de Meta → WhatsApp → Configuración de la API.</p>
             </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label className={L}>Instagram — ID de la cuenta</label>
+                <input name="ig_id" defaultValue={igId} className={I} placeholder="Ej. 17841400000000000" />
+                <p className="mt-1 text-xs text-cacao">ID de la cuenta de Instagram profesional conectada a tu app de Meta.</p>
+              </div>
+              <div>
+                <label className={L}>Messenger — ID de la página de Facebook</label>
+                <input name="fb_page_id" defaultValue={fbPageId} className={I} placeholder="Ej. 102900000000000" />
+                <p className="mt-1 text-xs text-cacao">ID de la página de Facebook del cliente (Messenger).</p>
+              </div>
+            </div>
+            <p className="text-xs text-cacao">
+              Instagram y Messenger usan tu app de Meta (webhook{" "}
+              <code className="rounded bg-crema px-1">/api/agente/meta/webhook</code>) y el envío
+              requiere <code className="rounded bg-crema px-1">META_PAGE_TOKEN</code>. TikTok no
+              ofrece API pública de mensajería para auto-responder DMs, por eso no aparece.
+            </p>
             <div className="space-y-2 rounded-xl bg-crema/60 p-3 text-sm">
               <p>
                 <span className="font-semibold text-texto">Mercado Pago:</span>{" "}

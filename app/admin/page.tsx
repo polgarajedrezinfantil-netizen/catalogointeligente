@@ -135,7 +135,7 @@ export default async function AdminInicio() {
   return (
     <div className="max-w-4xl space-y-6">
       <h1 className="font-titulo text-2xl text-durazno">
-        Hola, {perfil.nombre} 🍯
+        Hola, {perfil.nombre}
       </h1>
 
       {/* Aviso de pedidos pendientes (llaman a la acción) */}

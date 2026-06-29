@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { LogoMamielina } from "@/components/marca/Elementos";
 import {
   iniciarSesion,
   solicitarRecuperacion,
@@ -16,10 +15,15 @@ export default function LoginPage() {
   const [modo, setModo] = useState<"login" | "recuperar">("login");
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm rounded-[var(--radius-marca)] border border-miel-borde bg-white p-7 shadow-sm">
+    <main className="admin-shell flex min-h-screen flex-1 items-center justify-center bg-slate-100 px-6 py-16">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
         <div className="mb-5 flex flex-col items-center gap-2">
-          <LogoMamielina className="text-xl" />
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-xs font-black text-white">
+              MA
+            </span>
+            <span className="text-lg font-bold text-slate-800">MyelPlay Agentes</span>
+          </div>
           <p className="font-titulo text-durazno">
             {modo === "login" ? "Panel de administración" : "Recuperar contraseña"}
           </p>

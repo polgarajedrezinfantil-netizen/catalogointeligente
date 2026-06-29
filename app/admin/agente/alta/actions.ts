@@ -63,20 +63,25 @@ export async function guardarConfigAgente(formData: FormData) {
   );
   if (error) throw new Error(`config: ${error.message}`);
 
-  // Canal de WhatsApp (Phone Number ID) — opcional.
-  const pnid = txt("wa_phone_number_id");
-  if (pnid) {
+  // Canales de mensajería (opcionales): WhatsApp, Instagram, Messenger.
+  const canales = [
+    { tipo: "whatsapp", external_id: txt("wa_phone_number_id"), nombre: `WhatsApp ${marca.nombre}` },
+    { tipo: "instagram", external_id: txt("ig_id"), nombre: `Instagram ${marca.nombre}` },
+    { tipo: "messenger", external_id: txt("fb_page_id"), nombre: `Messenger ${marca.nombre}` },
+  ];
+  for (const canal of canales) {
+    if (!canal.external_id) continue;
     const { error: e2 } = await supabase.from("agente_canales").upsert(
       {
         tienda_id: tiendaId,
-        tipo: "whatsapp",
-        external_id: pnid,
-        nombre: `WhatsApp ${marca.nombre}`,
+        tipo: canal.tipo,
+        external_id: canal.external_id,
+        nombre: canal.nombre,
         activo: true,
       },
       { onConflict: "tipo,external_id" },
     );
-    if (e2) throw new Error(`canal: ${e2.message}`);
+    if (e2) throw new Error(`canal ${canal.tipo}: ${e2.message}`);
   }
 
   // Comisión del marketplace (solo el operador/superadmin la fija). Upsert que
