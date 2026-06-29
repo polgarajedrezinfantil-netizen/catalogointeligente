@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { SelectorTiendaNav } from "../SelectorTiendaNav";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +33,34 @@ function fecha(iso: string) {
   });
 }
 
-export default async function ConversacionesPage() {
+export default async function ConversacionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tienda?: string }>;
+}) {
   const perfil = await getPerfil();
-  if (!perfil || !perfil.tienda_id) {
+  const esSuper = perfil?.rol === "superadmin";
+  if (!perfil || (!esSuper && !perfil.tienda_id)) {
     return <p className="text-cacao">Esta sección es para administradores de una tienda.</p>;
   }
-  const t = perfil.tienda_id;
+  const sp = await searchParams;
   const supabase = await createClient();
+
+  // El superadmin elige qué tienda monitorear; el admin ve la suya.
+  const t = esSuper ? (sp.tienda ?? "") : perfil.tienda_id!;
+  const tiendas = esSuper
+    ? ((await supabase.from("tiendas").select("id, nombre, slug").order("nombre")).data ?? [])
+    : [];
+
+  if (esSuper && !t) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <h1 className="font-titulo text-2xl text-durazno">Conversaciones</h1>
+        <p className="text-sm text-cacao">Elige una tienda para ver sus conversaciones.</p>
+        <SelectorTiendaNav tiendas={tiendas} actual="" base="/admin/conversaciones" />
+      </div>
+    );
+  }
 
   const { data: convData } = await supabase
     .from("agente_conversaciones")
@@ -70,13 +92,14 @@ export default async function ConversacionesPage() {
 
   return (
     <div className="max-w-3xl space-y-5">
-      <div>
+      <div className="space-y-2">
         <h1 className="font-titulo text-2xl text-durazno">Conversaciones</h1>
         <p className="text-sm text-cacao">
           Todos los chats del agente con clientes. Cuando el agente pasa una a un humano
           aparece marcada como <strong>Necesita humano</strong>: ábrela y toca <strong>Tomar
           control</strong> para responder tú.
         </p>
+        {esSuper && <SelectorTiendaNav tiendas={tiendas} actual={t} base="/admin/conversaciones" />}
       </div>
 
       {pendientes > 0 && (

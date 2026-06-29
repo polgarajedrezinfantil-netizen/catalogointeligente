@@ -3,6 +3,7 @@ import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { embeddingsActivos } from "@/lib/agente/embeddings";
 import { SyncEmbeddings } from "./SyncEmbeddings";
+import { SelectorTiendaNav } from "../SelectorTiendaNav";
 
 export const dynamic = "force-dynamic";
 
@@ -45,17 +46,33 @@ function Tarjeta({ titulo, valor, nota, acento }: {
 export default async function AgenteMetricasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dias?: string }>;
+  searchParams: Promise<{ dias?: string; tienda?: string }>;
 }) {
   const perfil = await getPerfil();
-  if (!perfil || !perfil.tienda_id) {
+  const esSuper = perfil?.rol === "superadmin";
+  if (!perfil || (!esSuper && !perfil.tienda_id)) {
     return <p className="text-cacao">Esta sección es para administradores de una tienda.</p>;
   }
-  const t = perfil.tienda_id;
   const sp = await searchParams;
   const dias = RANGOS.includes(Number(sp.dias)) ? Number(sp.dias) : 30;
-
   const supabase = await createClient();
+
+  // El superadmin elige qué tienda monitorear; el admin ve la suya.
+  const t = esSuper ? (sp.tienda ?? "") : perfil.tienda_id!;
+  const tiendas = esSuper
+    ? ((await supabase.from("tiendas").select("id, nombre, slug").order("nombre")).data ?? [])
+    : [];
+
+  if (esSuper && !t) {
+    return (
+      <div className="max-w-4xl space-y-4">
+        <h1 className="font-titulo text-2xl text-durazno">Métricas del agente</h1>
+        <p className="text-sm text-cacao">Elige una tienda para ver sus métricas.</p>
+        <SelectorTiendaNav tiendas={tiendas} actual="" base="/admin/agente" />
+      </div>
+    );
+  }
+
   const [{ data, error }, { data: tienda }, { count: nIndexados }, { count: nProductos }] =
     await Promise.all([
       supabase.rpc("agente_metricas", { p_tienda: t, p_dias: dias }),
@@ -85,17 +102,20 @@ export default async function AgenteMetricasPage({
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-titulo text-2xl text-durazno">Métricas del agente</h1>
-          <p className="text-sm text-cacao">
-            Resultados del agente de ventas en los últimos {dias} días.
-          </p>
+        <div className="space-y-2">
+          <div>
+            <h1 className="font-titulo text-2xl text-durazno">Métricas del agente</h1>
+            <p className="text-sm text-cacao">
+              Resultados del agente de ventas en los últimos {dias} días.
+            </p>
+          </div>
+          {esSuper && <SelectorTiendaNav tiendas={tiendas} actual={t} base="/admin/agente" />}
         </div>
         <div className="flex gap-1">
           {RANGOS.map((r) => (
             <Link
               key={r}
-              href={`/admin/agente?dias=${r}`}
+              href={esSuper ? `/admin/agente?tienda=${t}&dias=${r}` : `/admin/agente?dias=${r}`}
               className={`rounded-full px-3 py-1 text-sm font-semibold ${
                 r === dias ? "bg-durazno text-white" : "bg-miel/30 text-[#7a5a14] hover:bg-miel/50"
               }`}

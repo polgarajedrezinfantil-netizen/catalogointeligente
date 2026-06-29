@@ -4,14 +4,31 @@ import { revalidatePath } from "next/cache";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-// Acciones de la bandeja. Corren con el cliente de SESIÓN: RLS garantiza que el
-// admin/delegado solo toca conversaciones de SU tienda (tienda_id = mi_tienda_id()).
+// Acciones de la bandeja. Corren con el cliente de SESIÓN: la RLS garantiza que
+// el admin/delegado solo toca conversaciones de SU tienda, y el superadmin las
+// de cualquiera (políticas agente_conv_super / agente_msg_super).
 
 async function ctx() {
   const perfil = await getPerfil();
-  if (!perfil || !perfil.tienda_id) throw new Error("No autorizado");
+  const esSuper = perfil?.rol === "superadmin";
+  if (!perfil || (!esSuper && !perfil.tienda_id)) throw new Error("No autorizado");
   const supabase = await createClient();
-  return { perfil, supabase, tienda: perfil.tienda_id };
+  return { perfil, supabase };
+}
+
+// Tienda de la conversación, respetando RLS: si el usuario no puede verla, la
+// consulta no devuelve fila y lanzamos (el aislamiento por tienda queda intacto).
+async function tiendaDeConv(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+): Promise<string> {
+  const { data } = await supabase
+    .from("agente_conversaciones")
+    .select("tienda_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data?.tienda_id) throw new Error("Conversación no encontrada");
+  return data.tienda_id as string;
 }
 
 async function nota(
@@ -41,8 +58,9 @@ function refresca(id: string) {
 
 /** El humano toma el control: el agente deja de responder. */
 export async function tomarControl(formData: FormData) {
-  const { perfil, supabase, tienda } = await ctx();
+  const { perfil, supabase } = await ctx();
   const id = String(formData.get("conversacion_id"));
+  const tienda = await tiendaDeConv(supabase, id);
   const { error } = await supabase
     .from("agente_conversaciones")
     .update({ estado: "en_humano", asignado_a: perfil.id })
@@ -55,8 +73,9 @@ export async function tomarControl(formData: FormData) {
 
 /** Devuelve la conversación al agente. */
 export async function devolverAlAgente(formData: FormData) {
-  const { perfil, supabase, tienda } = await ctx();
+  const { perfil, supabase } = await ctx();
   const id = String(formData.get("conversacion_id"));
+  const tienda = await tiendaDeConv(supabase, id);
   const { error } = await supabase
     .from("agente_conversaciones")
     .update({ estado: "abierta", asignado_a: null })
@@ -69,8 +88,9 @@ export async function devolverAlAgente(formData: FormData) {
 
 /** Cierra la conversación. */
 export async function cerrarConversacion(formData: FormData) {
-  const { perfil, supabase, tienda } = await ctx();
+  const { perfil, supabase } = await ctx();
   const id = String(formData.get("conversacion_id"));
+  const tienda = await tiendaDeConv(supabase, id);
   const { error } = await supabase
     .from("agente_conversaciones")
     .update({ estado: "cerrada" })
@@ -87,10 +107,11 @@ export async function cerrarConversacion(formData: FormData) {
  * se conecta en la fase del webhook de canal.
  */
 export async function responderHumano(formData: FormData) {
-  const { supabase, tienda } = await ctx();
+  const { supabase } = await ctx();
   const id = String(formData.get("conversacion_id"));
   const texto = String(formData.get("texto") ?? "").trim();
   if (!texto) return;
+  const tienda = await tiendaDeConv(supabase, id);
   await nota(supabase, tienda, id, "humano", texto);
   refresca(id);
 }

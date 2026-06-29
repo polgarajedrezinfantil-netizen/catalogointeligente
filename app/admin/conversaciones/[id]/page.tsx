@@ -26,18 +26,20 @@ export default async function ConversacionPage({
 }) {
   const { id } = await params;
   const perfil = await getPerfil();
-  if (!perfil || !perfil.tienda_id) {
+  const esSuper = perfil?.rol === "superadmin";
+  if (!perfil || (!esSuper && !perfil.tienda_id)) {
     return <p className="text-cacao">Esta sección es para administradores de una tienda.</p>;
   }
-  const t = perfil.tienda_id;
   const supabase = await createClient();
 
-  const { data: conv } = await supabase
+  // El admin solo ve conversaciones de su tienda (RLS + filtro); el superadmin
+  // ve cualquiera (carga por id; la RLS agente_conv_super lo permite).
+  let q = supabase
     .from("agente_conversaciones")
-    .select("id, tipo_canal, cliente_externo_id, cliente_nombre, cliente_celular, estado, asignado_a")
-    .eq("id", id)
-    .eq("tienda_id", t)
-    .maybeSingle();
+    .select("id, tienda_id, tipo_canal, cliente_externo_id, cliente_nombre, cliente_celular, estado, asignado_a")
+    .eq("id", id);
+  if (!esSuper) q = q.eq("tienda_id", perfil.tienda_id!);
+  const { data: conv } = await q.maybeSingle();
 
   if (!conv) {
     return (
@@ -63,7 +65,10 @@ export default async function ConversacionPage({
 
   return (
     <div className="max-w-2xl space-y-4">
-      <Link href="/admin/conversaciones" className="text-sm font-semibold text-durazno underline">
+      <Link
+        href={esSuper ? `/admin/conversaciones?tienda=${conv.tienda_id}` : "/admin/conversaciones"}
+        className="text-sm font-semibold text-durazno underline"
+      >
         ← Bandeja
       </Link>
 
@@ -108,7 +113,7 @@ export default async function ConversacionPage({
         </div>
       </div>
 
-      <Hilo conversacionId={conv.id} tiendaId={t} estado={estado} initial={mensajes} />
+      <Hilo conversacionId={conv.id} tiendaId={conv.tienda_id} estado={estado} initial={mensajes} />
     </div>
   );
 }
