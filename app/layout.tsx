@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Fredoka, Baloo_2, Nunito, Caveat } from "next/font/google";
+import { tiendaPorHost } from "@/lib/marca-host";
+import { urlFoto } from "@/lib/fotos";
 import "./globals.css";
 
 // Tipografías del brand board, cargadas y optimizadas por next/font.
@@ -25,36 +28,65 @@ const caveat = Caveat({
   weight: ["600", "700"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://mamielina.myelplay.com"),
-  title: "Catálogo Mamielina",
-  description:
-    "Catálogo en línea de Mamielina 🍯 Ropa y más para bebés 0-24 meses. Mira y aparta lo que te guste.",
-  openGraph: {
-    type: "website",
-    siteName: "Catálogo Mamielina",
-    title: "Mamielina",
-    description:
-      "Ropa y más para bebés 0-24 meses 🍯 Mira el catálogo y aparta lo que te guste.",
-    url: "https://mamielina.myelplay.com",
-    locale: "es_MX",
-    images: [
-      {
-        url: "/og.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Mamielina — miel y protección",
+// Metadata por host: en <tienda>.myelplay.com la marca es la de esa tienda;
+// en el dominio del producto (agentes.*) y hosts técnicos, "MyelPlay Agentes".
+// Las páginas de catálogo ([tienda]) siguen afinando su propio OG por BD.
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers();
+  const host = (h.get("host") ?? "").split(":")[0];
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const base = new URL(host ? `${proto}://${host}` : "http://localhost:3000");
+
+  const tienda = await tiendaPorHost();
+  if (tienda) {
+    const titulo = `Catálogo ${tienda.nombre}`;
+    const desc = `Catálogo en línea de ${tienda.nombre}. Mira y aparta lo que te guste.`;
+    // El og.jpg del repo es el arte de Mamielina; las demás tiendas usan su logo.
+    const img =
+      tienda.slug === "mamielina"
+        ? "/og.jpg"
+        : tienda.logo_url
+          ? urlFoto(tienda.logo_url)
+          : undefined;
+    return {
+      metadataBase: base,
+      title: titulo,
+      description: desc,
+      openGraph: {
+        type: "website",
+        siteName: titulo,
+        title: tienda.nombre,
+        description: desc,
+        url: base.toString(),
+        locale: "es_MX",
+        ...(img ? { images: [{ url: img, width: 1200, height: 630, alt: tienda.nombre }] } : {}),
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Mamielina",
-    description:
-      "Ropa y más para bebés 0-24 meses 🍯 Mira el catálogo y aparta lo que te guste.",
-    images: ["/og.jpg"],
-  },
-};
+      twitter: {
+        card: "summary_large_image",
+        title: tienda.nombre,
+        description: desc,
+        ...(img ? { images: [img] } : {}),
+      },
+    };
+  }
+
+  const desc =
+    "Catálogo en línea con tu marca, apartados en vivo y pedidos por WhatsApp — con agente de ventas IA opcional.";
+  return {
+    metadataBase: base,
+    title: "MyelPlay Agentes",
+    description: desc,
+    openGraph: {
+      type: "website",
+      siteName: "MyelPlay Agentes",
+      title: "MyelPlay Agentes",
+      description: desc,
+      url: base.toString(),
+      locale: "es_MX",
+    },
+    twitter: { card: "summary", title: "MyelPlay Agentes", description: desc },
+  };
+}
 
 export default function RootLayout({
   children,

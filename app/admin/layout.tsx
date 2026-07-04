@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { cerrarSesion } from "./actions";
 
 // Metadatos NEUTROS del panel: sobreescriben los del layout raíz (que son de la
@@ -92,7 +93,24 @@ export default async function AdminLayout({
   if (!perfil) return <>{children}</>;
 
   const esSuper = perfil.rol === "superadmin";
-  const grupos = esSuper ? NAV_SUPER : NAV_TIENDA;
+  let grupos = esSuper ? NAV_SUPER : NAV_TIENDA;
+
+  // Modo "solo catálogo": el agente es un add-on. Si la tienda no tiene alta
+  // de agente (fila en agente_config, la crea el operador al contratarlo),
+  // el panel no muestra los módulos del agente. El superadmin siempre los ve.
+  if (!esSuper) {
+    let tieneAgente = false;
+    if (perfil.tienda_id) {
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("agente_config")
+        .select("tienda_id")
+        .eq("tienda_id", perfil.tienda_id)
+        .maybeSingle();
+      tieneAgente = Boolean(data);
+    }
+    if (!tieneAgente) grupos = grupos.filter((g) => g.grupo !== "Agente");
+  }
 
   return (
     <div className="admin-shell flex min-h-screen flex-col bg-slate-100 md:flex-row">

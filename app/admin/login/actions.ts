@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { baseUrl } from "@/lib/agente/urls";
 
 export type EstadoLogin = { error: string } | null;
 
@@ -42,8 +43,8 @@ export async function solicitarRecuperacion(
   if (!email) return { ok: false, mensaje: "Escribe tu correo." };
 
   const h = await headers();
-  const origin =
-    h.get("origin") ?? `https://${h.get("host") ?? "mamielina.myelplay.com"}`;
+  const host = h.get("host");
+  const origin = h.get("origin") ?? (host ? `https://${host}` : baseUrl());
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

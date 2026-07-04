@@ -45,13 +45,16 @@ supabase db push                        # aplica las migraciones
 ```
 > En Storage, crea un bucket público llamado **`fotos`**.
 
-### Modelo SaaS multi-tienda
-Esta app es un SaaS en `nidos.myelplay.com`. Una sola base aislada por
-`tienda_id` con RLS (Opción 1). Roles: **superadmin** (gestiona todas las
-tiendas y asigna planes/límites), **admin** y **delegado** (operan SU tienda).
-Cada tienda tiene un `slug` y sus catálogos se comparten como
-`nidos.myelplay.com/<slug>/<nido>`. Los **planes** (`basico`=3, `pro`=10,
-`ilimitado`) definen el máximo de catálogos activos por tienda.
+### Modelo SaaS multi-tienda (MyelPlay Agentes)
+El producto vive en `agentes.myelplay.com` (panel del operador) y cada tienda
+cliente en su subdominio `<tienda>.myelplay.com` (ej. `mamielina.myelplay.com`).
+Una sola base aislada por `tienda_id` con RLS (Opción 1). Roles: **superadmin**
+(gestiona todas las tiendas y asigna planes/límites), **admin** y **delegado**
+(operan SU tienda). Cada tienda tiene un `slug` y su catálogo se comparte como
+`<tienda>.myelplay.com/<slug>`. Los **planes** (`basico`=3, `pro`=10,
+`ilimitado`) definen el máximo de catálogos activos por tienda. El **agente IA**
+es un add-on por tienda: sin alta en `agente_config`, el panel de esa tienda no
+muestra los módulos del agente.
 
 ### Primer superadmin
 1. En Supabase → **Authentication → Users → Add user** (email + contraseña).
