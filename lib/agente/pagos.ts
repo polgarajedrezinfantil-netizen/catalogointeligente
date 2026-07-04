@@ -8,7 +8,7 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { baseUrl } from "./urls";
-import { accessTokenDe, comisionPct } from "./mp-oauth";
+import { tokenCobro, comisionPct } from "./mp-oauth";
 
 const MP_API = "https://api.mercadopago.com/checkout/preferences";
 
@@ -37,9 +37,8 @@ export async function crearLinkPago(params: {
   productoIds: string[];
   cupon?: string;
 }): Promise<ResultadoCobro> {
-  // Token de cobro: el de la tienda (OAuth) o, en transición, el global.
-  const tokenTienda = await accessTokenDe(params.tiendaId);
-  const token = tokenTienda ?? process.env.MP_ACCESS_TOKEN ?? null;
+  // Token de cobro: el de la tienda (OAuth) o, si está autorizada, el global.
+  const { token, propio } = await tokenCobro(params.tiendaId);
   if (!token) return { ok: false, error: "cobro_no_conectado" };
 
   const ids = (params.productoIds ?? [])
@@ -71,7 +70,7 @@ export async function crearLinkPago(params: {
   const omitidos = (pedido.omitidos ?? 0) as number;
 
   // 2) Comisión del marketplace (solo si la tienda usa su propia cuenta).
-  const pct = tokenTienda ? await comisionPct(params.tiendaId) : 0;
+  const pct = propio ? await comisionPct(params.tiendaId) : 0;
   const fee = pct > 0 ? Math.round((total * pct) / 100) : 0;
 
   // 3) Preferencia de pago en Mercado Pago (con la cuenta del cliente).

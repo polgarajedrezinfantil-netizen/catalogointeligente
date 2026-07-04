@@ -132,6 +132,34 @@ export async function accessTokenDe(tiendaId: string): Promise<string | null> {
   return descifrar(data.mp_access_token as string);
 }
 
+/** Tiendas autorizadas a usar el token global de transición (MP_FALLBACK_TIENDAS). */
+function fallbackPermitido(tiendaId: string): boolean {
+  const lista = (process.env.MP_FALLBACK_TIENDAS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return lista.includes(tiendaId);
+}
+
+/**
+ * Resuelve el token de cobro de una tienda (una sola fuente de verdad para
+ * crear la preferencia y para consultar el pago en el webhook):
+ *   - Si la tienda conectó su MP por OAuth → usa SU token (propio=true, aplica comisión).
+ *   - Si no, SOLO cae al MP_ACCESS_TOKEN global si la tienda está en la
+ *     allowlist MP_FALLBACK_TIENDAS (transición). Fuera de la lista → sin cobro.
+ * Endurecido por defecto: una tienda nueva DEBE conectar su propia cuenta.
+ */
+export async function tokenCobro(
+  tiendaId: string | null,
+): Promise<{ token: string | null; propio: boolean }> {
+  const tokenPropio = tiendaId ? await accessTokenDe(tiendaId) : null;
+  if (tokenPropio) return { token: tokenPropio, propio: true };
+  if (tiendaId && fallbackPermitido(tiendaId) && process.env.MP_ACCESS_TOKEN) {
+    return { token: process.env.MP_ACCESS_TOKEN, propio: false };
+  }
+  return { token: null, propio: false };
+}
+
 /** Estado de conexión + comisión, para el panel. */
 export async function estadoMP(
   tiendaId: string,

@@ -23,10 +23,16 @@ const OBLIGATORIAS = [
   "ANTHROPIC_API_KEY",
 ];
 const OPCIONALES = [
-  "SERPAPI_KEY",
-  "MP_ACCESS_TOKEN",
-  "BELVO_SECRET_ID",
-  "RESEND_API_KEY",
+  "VOYAGE_API_KEY",        // RAG del agente (embeddings)
+  "META_APP_SECRET",       // webhooks de Meta/WhatsApp
+  "META_PAGE_TOKEN",       // envío por Messenger/Instagram
+  "WHATSAPP_TOKEN",        // envío por WhatsApp
+  "MP_CLIENT_ID",          // Marketplace OAuth (cobros)
+  "MP_CLIENT_SECRET",
+  "MP_WEBHOOK_SECRET",
+  "FIELD_ENCRYPTION_KEY",  // cifra secretos por tienda
+  "SERPAPI_KEY",           // precios de referencia (panel)
+  "RESEND_API_KEY",        // correos a clientes
 ];
 
 let faltan = false;

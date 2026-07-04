@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
-import { accessTokenDe } from "@/lib/agente/mp-oauth";
+import { tokenCobro } from "@/lib/agente/mp-oauth";
 
 // Webhook de Mercado Pago para el cobro del agente.
 //   - Valida la firma (x-signature) con MP_WEBHOOK_SECRET.
@@ -74,11 +74,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "firma_invalida" }, { status: 401 });
   }
 
-  // Token de la tienda que cobró (vía ?t=) para consultar SU pago; si no está
-  // conectada por OAuth, cae al token global (transición).
+  // Token de la tienda que cobró (vía ?t=) para consultar SU pago; usa la misma
+  // resolución que al crear el link (OAuth propio o fallback global autorizado).
   const tiendaId = url.searchParams.get("t");
-  const token =
-    (tiendaId ? await accessTokenDe(tiendaId) : null) ?? process.env.MP_ACCESS_TOKEN;
+  const { token } = await tokenCobro(tiendaId);
   if (!token) {
     return NextResponse.json({ error: "cobro_no_configurado" }, { status: 500 });
   }
