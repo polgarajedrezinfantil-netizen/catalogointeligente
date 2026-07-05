@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { cerrarSesion } from "./actions";
+import { AvisoSuscripcion } from "./AvisoSuscripcion";
 
 // Metadatos NEUTROS del panel: sobreescriben los del layout raíz (que son de la
 // tienda Mamielina) para que el admin no muestre marca de cliente. No indexar.
@@ -175,7 +176,12 @@ export default async function AdminLayout({
             </button>
           </form>
         </header>
-        <main className="flex-1 p-5 md:p-8">{children}</main>
+        <main className="flex-1 p-5 md:p-8">
+          {!esSuper && perfil.tienda_id && (
+            <AvisoSuscripcion tiendaId={perfil.tienda_id} />
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

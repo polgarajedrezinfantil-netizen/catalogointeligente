@@ -67,11 +67,17 @@ function LandingProducto() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <a
-          href="mailto:notificaciones@myelplay.com?subject=Quiero%20mi%20tienda%20en%20MyelPlay%20Agentes"
+        <Link
+          href="/registro"
           className="rounded-full bg-indigo-600 px-6 py-3 font-bold text-white shadow-sm transition hover:bg-indigo-500"
         >
-          Solicita tu tienda
+          Prueba gratis 14 días
+        </Link>
+        <a
+          href="mailto:notificaciones@myelplay.com?subject=Quiero%20mi%20tienda%20en%20MyelPlay%20Agentes"
+          className="rounded-full border border-slate-300 bg-white px-6 py-3 font-bold text-slate-700 transition hover:bg-slate-50"
+        >
+          Hablar con nosotros
         </a>
         <Link
           href="/admin"

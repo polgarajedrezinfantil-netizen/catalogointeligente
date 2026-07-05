@@ -1,11 +1,20 @@
 import { redirect } from "next/navigation";
 import { getPerfil } from "@/lib/auth";
+import { estadoSuscripcion } from "@/lib/saas/suscripciones";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Plan, Tienda } from "@/lib/tipos";
 import { crearTienda, cambiarPlan, alternarActiva } from "./actions";
 import { InvitarEquipo } from "./InvitarEquipo";
 import { GestionUsuarios } from "./GestionUsuarios";
+import { Suscripcion } from "./Suscripcion";
+
+// Fecha corta legible para el bloque de suscripción.
+function fechaCorta(d: Date | null): string | null {
+  return d
+    ? d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+    : null;
+}
 
 // Panel de superadmin: alta y gestión de tiendas del SaaS.
 export default async function TiendasPage() {
@@ -141,6 +150,24 @@ export default async function TiendasPage() {
                   </button>
                 </form>
               </div>
+
+              {/* Suscripción: estado, link de cobro MP y pago manual */}
+              {(() => {
+                const e = estadoSuscripcion(t);
+                return (
+                  <Suscripcion
+                    tiendaId={t.id}
+                    precio={Number(t.precio_mensual ?? 299)}
+                    estado={{
+                      tipo: e.tipo,
+                      vence: fechaCorta(e.vence),
+                      diasRestantes: e.diasRestantes,
+                    }}
+                    initPoint={t.mp_init_point}
+                    emailSugerido={usuarios.find((u) => u.rol === "admin")?.email ?? ""}
+                  />
+                );
+              })()}
 
               {/* Invitar usuario (contraseña temporal o correo) */}
               <InvitarEquipo tiendaId={t.id} />

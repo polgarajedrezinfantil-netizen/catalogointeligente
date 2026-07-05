@@ -51,6 +51,13 @@ export type Tienda = {
   aviso_texto: string | null;
   aviso_cupon: string | null;
   aviso_activo: boolean;
+  // Suscripción del SaaS (Fase 2): null en todo = tienda de cortesía.
+  trial_hasta: string | null;
+  suscripcion_hasta: string | null;
+  mp_suscripcion_id: string | null;
+  mp_init_point: string | null;
+  precio_mensual: number;
+  apagada_por_impago: boolean;
 };
 
 // Guía de tallas: tabla de referencia (encabezados + filas de celdas).

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getPerfil } from "@/lib/auth";
+import { crearSuscripcion, saasCobroConfigurado } from "@/lib/saas/suscripciones";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -155,6 +156,80 @@ export async function restablecerPassword(
   if (error) return { ok: false, mensaje: error.message };
 
   return { ok: true, mensaje: `Nueva contraseña: ${password}` };
+}
+
+// Crea (o regenera) la suscripción mensual de MP para una tienda y guarda
+// el link de pago que se le comparte al dueño.
+export async function gestionarSuscripcion(
+  _prev: EstadoInvitacion,
+  formData: FormData,
+): Promise<EstadoInvitacion> {
+  await exigirSuperadmin();
+  const tienda_id = String(formData.get("tienda_id"));
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { ok: false, mensaje: "Falta el correo del dueño (su cuenta de Mercado Pago)." };
+  if (!saasCobroConfigurado()) {
+    return {
+      ok: false,
+      mensaje: "Falta MP_SAAS_ACCESS_TOKEN en el entorno (app de Suscripciones de MP del operador).",
+    };
+  }
+
+  const admin = createServiceClient();
+  const { data: tienda, error } = await admin
+    .from("tiendas")
+    .select("id, nombre, precio_mensual")
+    .eq("id", tienda_id)
+    .single();
+  if (error || !tienda) return { ok: false, mensaje: "Tienda no encontrada." };
+
+  try {
+    const s = await crearSuscripcion(
+      { id: tienda.id, nombre: tienda.nombre, precio_mensual: Number(tienda.precio_mensual) },
+      email,
+    );
+    const { error: eUpd } = await admin
+      .from("tiendas")
+      .update({ mp_suscripcion_id: s.id, mp_init_point: s.init_point })
+      .eq("id", tienda_id);
+    if (eUpd) return { ok: false, mensaje: eUpd.message };
+    revalidatePath("/admin/tiendas");
+    return { ok: true, mensaje: `Link de cobro listo: ${s.init_point}` };
+  } catch (e) {
+    return { ok: false, mensaje: e instanceof Error ? e.message : "Error con Mercado Pago." };
+  }
+}
+
+// Registra un mes pagado a mano (transferencia/efectivo): corre la fecha
+// pagada un mes desde hoy (o desde el vencimiento si aún no llega) y
+// reenciende la tienda si estaba apagada por impago.
+export async function extenderMes(formData: FormData) {
+  await exigirSuperadmin();
+  const tienda_id = String(formData.get("tienda_id"));
+  const admin = createServiceClient();
+  const { data: tienda, error } = await admin
+    .from("tiendas")
+    .select("suscripcion_hasta, apagada_por_impago")
+    .eq("id", tienda_id)
+    .single();
+  if (error || !tienda) throw new Error("Tienda no encontrada");
+
+  const base = Math.max(
+    Date.now(),
+    tienda.suscripcion_hasta ? new Date(tienda.suscripcion_hasta).getTime() : 0,
+  );
+  const nueva = new Date(base);
+  nueva.setMonth(nueva.getMonth() + 1);
+
+  const { error: eUpd } = await admin
+    .from("tiendas")
+    .update({
+      suscripcion_hasta: nueva.toISOString(),
+      ...(tienda.apagada_por_impago ? { activa: true, apagada_por_impago: false } : {}),
+    })
+    .eq("id", tienda_id);
+  if (eUpd) throw new Error(eUpd.message);
+  revalidatePath("/admin/tiendas");
 }
 
 // El superadmin elimina por completo la cuenta de un usuario de tienda.

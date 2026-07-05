@@ -30,6 +30,7 @@ const OPCIONALES = [
   "MP_CLIENT_ID",          // Marketplace OAuth (cobros)
   "MP_CLIENT_SECRET",
   "MP_WEBHOOK_SECRET",
+  "MP_SAAS_ACCESS_TOKEN",  // Suscripciones del SaaS (mensualidad)
   "FIELD_ENCRYPTION_KEY",  // cifra secretos por tienda
   "SERPAPI_KEY",           // precios de referencia (panel)
   "RESEND_API_KEY",        // correos a clientes
