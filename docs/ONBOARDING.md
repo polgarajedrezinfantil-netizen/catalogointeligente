@@ -19,8 +19,10 @@ add-on aparte). Tiempo estimado: 30–60 min de operador + 1 sesión con el clie
 
 ## 2. Alta (operador, con cuenta superadmin)
 
-1. **Verificar el subdominio contra el registro de subdominios** de
-   `myelplay.com` (POLGAR y Nicómaco comparten el dominio; evitar colisiones).
+1. **Verificar el subdominio contra el registro de subdominios**:
+   `INFRAESTRUCTURA.md` en la raíz del repo (fuente de verdad; POLGAR y
+   Nicómaco comparten el dominio). Anotar ahí el subdominio nuevo (commit)
+   antes de crearlo.
 2. **Crear la tienda** en `agentes.myelplay.com/admin/tiendas` → "Nueva tienda":
    nombre + plan; marcar **sembrar líneas demo** para que el panel no arranque
    vacío (el cliente las renombra después).

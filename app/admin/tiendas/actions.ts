@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getPerfil } from "@/lib/auth";
+import { esSlugReservado } from "@/lib/saas/subdominios";
 import { crearSuscripcion, saasCobroConfigurado } from "@/lib/saas/suscripciones";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -35,15 +36,18 @@ export async function crearTienda(formData: FormData) {
   const slugBase = aSlug(nombre) || "tienda";
   const supabase = await createClient();
 
-  // Garantiza un slug único agregando sufijo si ya existe.
+  // Garantiza un slug único agregando sufijo si ya existe o está reservado
+  // (subdominios de infraestructura u otros productos — ver INFRAESTRUCTURA.md).
   let slug = slugBase;
   for (let i = 2; i < 50; i++) {
-    const { data } = await supabase
-      .from("tiendas")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
-    if (!data) break;
+    if (!esSlugReservado(slug)) {
+      const { data } = await supabase
+        .from("tiendas")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (!data) break;
+    }
     slug = `${slugBase}-${i}`;
   }
 

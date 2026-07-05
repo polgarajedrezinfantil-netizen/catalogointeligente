@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { esSlugReservado } from "@/lib/saas/subdominios";
 import { TRIAL_DIAS } from "@/lib/saas/suscripciones";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -50,12 +51,15 @@ export async function registrarTienda(
     return { ok: false, mensaje: "Ese correo ya tiene cuenta. Entra desde el panel." };
   }
 
-  // Slug único (con sufijo si el nombre ya existe).
+  // Slug único (con sufijo si el nombre ya existe o está reservado — ver
+  // INFRAESTRUCTURA.md, subdominios de infraestructura u otros productos).
   const slugBase = aSlug(tiendaNombre) || "tienda";
   let slug = slugBase;
   for (let i = 2; i < 50; i++) {
-    const { data } = await service.from("tiendas").select("id").eq("slug", slug).maybeSingle();
-    if (!data) break;
+    if (!esSlugReservado(slug)) {
+      const { data } = await service.from("tiendas").select("id").eq("slug", slug).maybeSingle();
+      if (!data) break;
+    }
     slug = `${slugBase}-${i}`;
   }
 
