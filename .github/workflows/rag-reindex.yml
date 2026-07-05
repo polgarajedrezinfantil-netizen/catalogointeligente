@@ -1,0 +1,42 @@
+# Reindexado diario del RAG del agente (etapa 2 de la auditoría).
+# Llama a /api/agente/embeddings/sync por cada tienda listada en la variable
+# de repo RAG_TIENDAS (separadas por espacio; si no existe, usa "mamielina").
+# Mientras VOYAGE_API_KEY no esté en Vercel, el endpoint responde 400 y este
+# job termina en verde con aviso de "saltado" — al poner la key, empieza a
+# indexar solo, sin tocar el repo. Secret requerido: CRON_SECRET (el mismo
+# de Vercel).
+name: RAG reindex
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Reindexar tiendas
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TIENDAS: ${{ vars.RAG_TIENDAS || 'mamielina' }}
+        run: |
+          set -u
+          fallo=0
+          for t in $TIENDAS; do
+            resp=$(curl -s --max-time 300 -X POST \
+              "https://agentes.myelplay.com/api/agente/embeddings/sync" \
+              -H "x-agente-secret: $CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              -d "{\"tienda\":\"$t\"}")
+            if echo "$resp" | grep -q "VOYAGE_API_KEY no configurada"; then
+              echo "::notice::[$t] búsqueda vectorial apagada (falta VOYAGE_API_KEY en Vercel) — saltado"
+            elif echo "$resp" | grep -q '"ok":true'; then
+              echo "[$t] OK → $resp"
+            else
+              echo "::error::[$t] falló → $resp"
+              fallo=1
+            fi
+          done
+          exit $fallo

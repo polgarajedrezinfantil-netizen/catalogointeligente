@@ -1,0 +1,36 @@
+# Smoke test post-deploy (etapa 2 de la auditoría): corre en cada deploy de
+# Production que Vercel reporta a GitHub, y a mano con workflow_dispatch.
+# Si algo falla, GitHub manda correo al dueño del workflow.
+# (El uptime cada 15 min vive aparte en uptime.yml.)
+name: Smoke post-deploy
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment_status.environment, 'Production'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Landing del producto (agentes.*)
+        run: curl -sfL -o /dev/null --max-time 30 --retry 2 --retry-delay 5 https://agentes.myelplay.com/
+      - name: Catálogo Mamielina (toca la BD)
+        run: curl -sfL -o /dev/null --max-time 30 --retry 2 --retry-delay 5 https://mamielina.myelplay.com/mamielina
+      - name: Catálogo Gabrielle (toca la BD)
+        run: curl -sfL -o /dev/null --max-time 30 --retry 2 --retry-delay 5 https://gabrielle.myelplay.com/gabrielle
+      - name: Login branded (lee tiendas por RLS)
+        run: |
+          curl -sL --max-time 30 https://gabrielle.myelplay.com/login | grep -q "Gabrielle"
+      - name: Webhook Meta vivo (GET sin token → 403)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://agentes.myelplay.com/api/agente/meta/webhook)
+          [ "$code" = "403" ] || { echo "esperaba 403, llegó $code"; exit 1; }
+      - name: Cron SaaS protegido (sin secret → 401)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://agentes.myelplay.com/api/saas/cron)
+          [ "$code" = "401" ] || { echo "esperaba 401, llegó $code"; exit 1; }
