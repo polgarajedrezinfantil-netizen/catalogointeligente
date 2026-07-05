@@ -31,8 +31,10 @@ alter table public.tiendas
   add column if not exists precio_mensual     numeric not null default 299,
   add column if not exists apagada_por_impago boolean not null default false;
 
+-- OJO: SECURITY INVOKER a propósito. Con DEFINER, current_user dentro de la
+-- función sería el dueño (postgres) y el candado se saltaría siempre.
 create or replace function public.protege_columnas_cobro()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security invoker set search_path = public as $$
 begin
   -- Solo restringe a los roles de la API; superadmin conserva todo.
   if current_user not in ('authenticated', 'anon') or public.es_superadmin() then
