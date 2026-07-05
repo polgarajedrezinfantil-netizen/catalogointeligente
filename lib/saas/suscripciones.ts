@@ -24,11 +24,20 @@ function token(): string {
  * Crea la suscripción mensual (preapproval pendiente) para una tienda y
  * devuelve el link de pago que se le manda al dueño. El cobro es al correo
  * que el dueño use en Mercado Pago.
+ *
+ * `primerCobro` (opcional): fecha del primer cargo. Sin ella, MP cobra en
+ * cuanto el dueño autoriza el link; con ella, el link se puede autorizar
+ * desde hoy y MP no cobra nada hasta esa fecha (fin del periodo gratis).
  */
 export async function crearSuscripcion(
   tienda: { id: string; nombre: string; precio_mensual: number },
   payerEmail: string,
+  primerCobro?: Date | null,
 ): Promise<{ id: string; init_point: string }> {
+  const programado =
+    primerCobro && primerCobro.getTime() > Date.now()
+      ? { start_date: primerCobro.toISOString() }
+      : {};
   const resp = await fetch(`${API}/preapproval`, {
     method: "POST",
     headers: {
@@ -44,6 +53,7 @@ export async function crearSuscripcion(
         frequency_type: "months",
         transaction_amount: Number(tienda.precio_mensual),
         currency_id: "MXN",
+        ...programado,
       },
       back_url: `${baseUrl()}/admin`,
       status: "pending",

@@ -182,15 +182,18 @@ export async function gestionarSuscripcion(
   const admin = createServiceClient();
   const { data: tienda, error } = await admin
     .from("tiendas")
-    .select("id, nombre, precio_mensual")
+    .select("id, nombre, precio_mensual, trial_hasta")
     .eq("id", tienda_id)
     .single();
   if (error || !tienda) return { ok: false, mensaje: "Tienda no encontrada." };
 
   try {
+    // Si la tienda tiene periodo gratis vigente, el primer cargo se programa
+    // al terminar: el link se puede mandar hoy sin que MP cobre antes.
     const s = await crearSuscripcion(
       { id: tienda.id, nombre: tienda.nombre, precio_mensual: Number(tienda.precio_mensual) },
       email,
+      tienda.trial_hasta ? new Date(tienda.trial_hasta) : null,
     );
     const { error: eUpd } = await admin
       .from("tiendas")
