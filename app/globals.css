@@ -24,6 +24,7 @@
   --font-producto: var(--font-baloo); /* nombres de producto */
   --font-cuerpo: var(--font-nunito); /* cuerpo */
   --font-mano: var(--font-caveat); /* detalles a mano */
+  --font-script: var(--font-caveat); /* firma / nombre de marca (lo pisa cada plantilla) */
 
   /* ---- Radio suave de marca ---- */
   --radius-marca: 16px;
@@ -65,4 +66,47 @@ h3 {
   --color-coral: #4338ca; /* títulos de sección */
   --font-titulo: var(--font-cuerpo);
   --font-mano: var(--font-cuerpo);
+}
+
+/* =====================================================================
+   PLANTILLA "boutique" (Gabrielle) — re-tematiza SOLO las tipografías de la
+   tienda que la usa (los colores siguen viniendo del `tema` de la tienda).
+   Editorial: Playfair para títulos/precios, Great Vibes para el nombre de
+   marca, Poppins para el cuerpo. Se aplica al contenedor del storefront, así
+   que ninguna otra tienda se ve afectada.
+   ===================================================================== */
+.plantilla-boutique {
+  --font-titulo: var(--font-playfair);
+  --font-producto: var(--font-playfair);
+  --font-cuerpo: var(--font-poppins);
+  --font-script: var(--font-great-vibes);
+  /* Re-resuelve el cuerpo con la fuente de la plantilla para los textos que
+     heredan (los que usan utilidades font-* ya la toman por sí solos). */
+  font-family: var(--font-cuerpo), system-ui, sans-serif;
+}
+/* Los tonos café/verde que el catálogo trae fijos (pareja de la miel y el
+   verde de Mamielina) no combinan con paletas rosas: dentro de la boutique
+   se re-mapean a tokens del tema (precios y botones dorados → coral;
+   avisos → texto). Solo afecta a las tiendas con esta plantilla. */
+.plantilla-boutique .text-\[\#7a5414\] {
+  color: var(--color-coral);
+}
+.plantilla-boutique .text-\[\#3f5a1c\],
+.plantilla-boutique .text-\[\#7a3a26\] {
+  color: var(--color-texto);
+}
+/* Destellos del hero (mismo efecto que el mockup). */
+.plantilla-boutique .bq-sparkle {
+  animation: bq-tw 3.2s ease-in-out infinite;
+}
+@keyframes bq-tw {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
 }

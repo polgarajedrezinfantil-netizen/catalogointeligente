@@ -18,6 +18,7 @@ const ETIQUETA: Record<EstadoProducto, { txt: string; cls: string }> = {
 
 type TiendaMin = {
   id: string;
+  marca: string;
   simbolo: string;
   whatsapp: string | null;
   datosPago: string | null;
@@ -39,6 +40,7 @@ export function CatalogoCliente({
   campos,
   productos: productosIniciales,
   guias = [],
+  boutique = false,
 }: {
   tienda: TiendaMin;
   nidos: Nido[];
@@ -46,6 +48,7 @@ export function CatalogoCliente({
   campos: Campo[];
   productos: Producto[];
   guias?: GuiaTallas[];
+  boutique?: boolean;
 }) {
   const supabase = createClient();
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
@@ -65,6 +68,7 @@ export function CatalogoCliente({
   const [generoSel, setGeneroSel] = useState<"" | "nino" | "nina" | "unisex" | "mami">("");
   const [turno, setTurno] = useState<{ id: string; nombre: string } | null>(null);
   const miCelularRef = useRef("");
+  const busquedaRef = useRef<HTMLInputElement>(null);
 
   // Quién es el cliente en este dispositivo (para el carrito).
   useEffect(() => {
@@ -255,11 +259,29 @@ export function CatalogoCliente({
     };
   }, [supabase, tienda.id]);
 
-  // La barra inferior pide abrir el buscador desplegable.
+  // La barra inferior pide abrir el buscador (en boutique siempre está
+  // visible, así que solo se enfoca).
   useEffect(() => {
-    const abrir = () => setBuscadorAbierto(true);
+    const abrir = () => {
+      setBuscadorAbierto(true);
+      setTimeout(() => busquedaRef.current?.focus(), 300);
+    };
     window.addEventListener("abrir-buscador", abrir);
     return () => window.removeEventListener("abrir-buscador", abrir);
+  }, []);
+
+  // Filtrar por línea desde las "Colecciones" (plantilla boutique).
+  useEffect(() => {
+    const seleccionar = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      setLineaSel(id);
+      setGeneroSel("");
+      setSoloFavoritos(false);
+      setNidoSel("");
+      setFiltros({});
+    };
+    window.addEventListener("seleccionar-linea", seleccionar as EventListener);
+    return () => window.removeEventListener("seleccionar-linea", seleccionar as EventListener);
   }, []);
 
   const camposFiltro = useMemo(
@@ -300,6 +322,11 @@ export function CatalogoCliente({
     if (orden === "precio_desc") return [...arr].sort((a, b) => b.precio - a.precio);
     return arr; // "recomendado" = orden del servidor (más nuevos primero)
   }, [productos, lineaSel, nidoSel, filtros, busqueda, orden, soloFavoritos, favoritos, soloDisponibles, generoSel]);
+
+  // Los filtros de género (Niño/Niña/Mami) solo tienen sentido si la tienda
+  // etiqueta productos por género (ropa infantil). En rubros como maquillaje
+  // nadie los usa, así que se ocultan.
+  const hayGeneros = useMemo(() => productos.some((p) => !!p.genero), [productos]);
 
   const detalle = productos.find((p) => p.id === detalleId) ?? null;
 
@@ -342,52 +369,77 @@ export function CatalogoCliente({
         </div>
       )}
 
-      {/* Fila de chips: categorías y género (la búsqueda vive en la barra inferior) */}
-      <div id="buscador" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Chip
-          activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
-          onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
-        >
-          Todo
-        </Chip>
-        <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
-        <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
-        <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
-        {favoritos.size > 0 && (
-          <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
-        )}
-        {lineas.map((l) => (
-          <Chip
-            key={l.id}
-            activo={lineaSel === l.id}
-            onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
-            color={l.color}
+      {/* Buscador + chips. En boutique van juntos en una barra pegajosa con el
+          buscador SIEMPRE visible (como el mockup); en default los chips van
+          solos y la búsqueda se despliega desde la barra inferior. */}
+      {(() => {
+        const chips = (
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Chip
+              activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
+              onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
+            >
+              Todo
+            </Chip>
+            {hayGeneros && (
+              <>
+                <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
+                <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
+                <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
+              </>
+            )}
+            {favoritos.size > 0 && (
+              <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
+            )}
+            {lineas.map((l) => (
+              <Chip
+                key={l.id}
+                activo={lineaSel === l.id}
+                onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
+                color={l.color}
+              >
+                {l.icono} {l.nombre}
+              </Chip>
+            ))}
+          </div>
+        );
+        const inputBusqueda = (
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cacao">🔍</span>
+            <input
+              ref={busquedaRef}
+              autoFocus={!boutique}
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder={boutique ? "Buscar producto…" : "Buscar en el catálogo…"}
+              className="w-full rounded-full border border-miel-borde bg-white py-2.5 pl-9 pr-9 text-sm text-texto outline-none focus:border-verde-mielina"
+            />
+            {(busqueda || !boutique) && (
+              <button
+                onClick={() => { setBusqueda(""); if (!boutique) setBuscadorAbierto(false); }}
+                aria-label={boutique ? "Limpiar búsqueda" : "Cerrar búsqueda"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-cacao"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        );
+        return boutique ? (
+          <div
+            id="buscador"
+            className="sticky top-0 z-30 -mx-2 space-y-2 border-b border-miel-borde bg-crema/90 px-2 pb-2 pt-2 backdrop-blur"
           >
-            {l.icono} {l.nombre}
-          </Chip>
-        ))}
-      </div>
-
-      {/* Buscador desplegable */}
-      {buscadorAbierto && (
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cacao">🔍</span>
-          <input
-            autoFocus
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar en el catálogo…"
-            className="w-full rounded-full border border-miel-borde bg-white py-2 pl-9 pr-9 text-sm outline-none focus:border-verde-mielina"
-          />
-          <button
-            onClick={() => { setBusqueda(""); setBuscadorAbierto(false); }}
-            aria-label="Cerrar búsqueda"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-cacao"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+            {inputBusqueda}
+            {chips}
+          </div>
+        ) : (
+          <>
+            <div id="buscador">{chips}</div>
+            {buscadorAbierto && inputBusqueda}
+          </>
+        );
+      })()}
 
       {nidoSel && (
         <div className="flex items-center justify-between rounded-xl bg-miel/40 px-3 py-2 text-sm text-[#7a5a14]">
@@ -458,7 +510,7 @@ export function CatalogoCliente({
         </p>
       )}
 
-      <BuscaProducto tiendaId={tienda.id} />
+      <BuscaProducto tiendaId={tienda.id} marca={tienda.marca} />
 
       {detalle && (
         <DetalleProducto
@@ -829,7 +881,7 @@ function Chip({ children, activo, onClick, color }: { children: React.ReactNode;
     <button
       onClick={onClick}
       style={activo && color ? { backgroundColor: color } : undefined}
-      className={`rounded-full px-3 py-1.5 text-sm font-semibold ${activo ? (color ? "text-white" : "bg-verde-mielina text-white") : "border border-miel-borde bg-white text-texto"}`}
+      className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${activo ? (color ? "text-white" : "bg-verde-mielina text-white") : "border border-miel-borde bg-white text-texto"}`}
     >
       {children}
     </button>
@@ -1297,7 +1349,7 @@ function PreguntaProducto({
   );
 }
 
-function BuscaProducto({ tiendaId }: { tiendaId: string }) {
+function BuscaProducto({ tiendaId, marca }: { tiendaId: string; marca: string }) {
   const supabase = createClient();
   const [texto, setTexto] = useState("");
   const [enviado, setEnviado] = useState(false);
@@ -1317,7 +1369,7 @@ function BuscaProducto({ tiendaId }: { tiendaId: string }) {
 
   return (
     <form id="busca" onSubmit={enviar} className="scroll-mt-20 rounded-[var(--radius-marca)] border border-dashed border-durazno bg-white p-4">
-      <p className="mb-2 font-titulo text-durazno">Dinos qué te gustaría ver en Mamielina 🍯</p>
+      <p className="mb-2 font-titulo text-durazno">Dinos qué te gustaría ver en {marca} 🍯</p>
       <div className="flex gap-2">
         <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Ej. botitas talla 25, mameluco de algodón…" className="flex-1 rounded-xl border border-miel-borde bg-crema px-3 py-2 text-sm" />
         <button className="rounded-full bg-durazno px-4 py-2 text-sm font-bold text-white">Enviar</button>

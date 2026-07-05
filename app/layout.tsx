@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Fredoka, Baloo_2, Nunito, Caveat } from "next/font/google";
+import { Fredoka, Baloo_2, Nunito, Caveat, Playfair_Display, Great_Vibes, Poppins } from "next/font/google";
 import { tiendaPorHost } from "@/lib/marca-host";
 import { urlFoto } from "@/lib/fotos";
 import "./globals.css";
@@ -26,6 +26,29 @@ const caveat = Caveat({
   variable: "--font-caveat",
   subsets: ["latin"],
   weight: ["600", "700"],
+});
+
+// Tipografías de la plantilla "boutique" (Gabrielle). preload:false para no
+// descargarlas en las tiendas que no las usan: el navegador solo las pide si
+// algún elemento (dentro de .plantilla-boutique) las referencia.
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  style: ["normal", "italic"],
+  preload: false,
+});
+const greatVibes = Great_Vibes({
+  variable: "--font-great-vibes",
+  subsets: ["latin"],
+  weight: "400",
+  preload: false,
+});
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  preload: false,
 });
 
 // Metadata por host: en <tienda>.myelplay.com la marca es la de esa tienda;
@@ -94,7 +117,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${fredoka.variable} ${baloo.variable} ${nunito.variable} ${caveat.variable} h-full antialiased`}
+      className={`${fredoka.variable} ${baloo.variable} ${nunito.variable} ${caveat.variable} ${playfair.variable} ${greatVibes.variable} ${poppins.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-crema text-texto">
         {children}
