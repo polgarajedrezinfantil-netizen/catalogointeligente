@@ -1,0 +1,21 @@
+# Monitoreo de uptime sin servicios externos: si algún check falla, GitHub
+# manda correo al dueño del workflow (Settings → Notifications → Actions).
+# OJO: GitHub pausa los crons si el repo pasa 60 días sin commits (avisa antes).
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Catálogo Mamielina (toca la BD)
+        run: curl -sfL -o /dev/null --max-time 30 --retry 2 --retry-delay 10 https://mamielina.myelplay.com/
+      - name: Login del panel (branding desde la BD)
+        run: curl -sfL -o /dev/null --max-time 30 --retry 2 --retry-delay 10 https://mamielina.myelplay.com/admin/login
+      - name: Landing del producto
+        run: curl -sfL -o /dev/null --max-time 30 --retry 2 --retry-delay 10 https://agentes.myelplay.com/
