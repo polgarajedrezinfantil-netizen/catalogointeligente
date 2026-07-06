@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:env": "node scripts/check-env.mjs",
-    "test:aislamiento": "node scripts/aislamiento.mjs"
+    "test:aislamiento": "node scripts/aislamiento.mjs",
+    "respaldo": "node scripts/respaldo.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",

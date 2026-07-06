@@ -52,15 +52,20 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
   el TXT: `_vercel.myelplay.com` = `vc-domain-verify=mamielina.myelplay.com,152ebf69edcf9400a5fe`.
   Después de verificar (Vercel lo re-checa solo), quitar el dominio del
   proyecto viejo y recién entonces puede borrarse ese proyecto huérfano.
-- **H3 — dueño de la BD de prod** (`nthbgrjfeorowimktbzy`): **IDENTIFICADO
-  (6-jul): la cuenta dueña es `mamielina@myelplay.com`** (confirmado abriendo
-  el proyecto "catalogo_inteligente" en su dashboard). La cuenta de la CLI
-  (`nexus@myelplay.com`) no la ve hasta ser invitada. Restan: renombrar su
-  org a "MyelPlay", invitar a `nexus@` (Developer) + un Owner de respaldo,
-  activar MFA y guardar credenciales en el Llavero. OJO visto en el
-  dashboard: plan Free ⇒ **"No backups" automáticos** — el respaldo manual
-  verificado del 5-jul (`~/Backups/catalogo/`) es hoy el único; repetirlo
-  periódicamente hasta subir de plan.
+- **H3 — dueño de la BD de prod: CERRADO (6-jul).** Dueña:
+  `mamielina@myelplay.com` (org `kqsocdyolsnjkvobpsah`); invitados y
+  aceptados `nexus@myelplay.com` (la CLI ya ve la BD de prod, verificado) y
+  `algopiensa@gmail.com` como respaldo. Falta opcional: MFA en mamielina@ y
+  confirmar el renombre de la org a "MyelPlay".
+- **Respaldos (plan Free = sin backups automáticos): AUTOMATIZADO (6-jul).**
+  `npm run respaldo` (scripts/respaldo.mjs) + LaunchAgent
+  `com.myelplay.respaldo-catalogo` (lunes 09:30, corre al despertar):
+  pg_dump verificado con pg_restore --list + espejo aditivo de fotos →
+  `~/Backups/catalogo/` (retiene 8 dumps; log en respaldo.log; notificación
+  macOS si falla). El dump contiene hashes de auth — NO subirlo a ningún lado.
+- **Cuando haya clientes PAGANDO** (primer cobro MP real): subir a
+  **Supabase Pro** (backups diarios gestionados, 7 días) y **Vercel Pro**
+  (repo privado — hoy el código es público —, crons nativos, más límites).
 - Huérfanos fuera del team POLGAR (requieren sus propias cuentas):
   `catalogo-mamielina` (team albertos-projects) y `catalogointeligente` viejo
   (team nicomaco — NO borrar hasta migrar el dominio de mamielina).
