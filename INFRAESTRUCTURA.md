@@ -38,10 +38,12 @@ crearlo en Cloudflare/Vercel.
 | `polgar` | POLGAR (escuela de ajedrez) | `polgar` · POLGAR | may-2026 |
 | `nexus` | MyelPlay Nexus (portal seguimiento de proyectos) | `myelplay-nexus` · albertos-projects (login: cuenta algopiensa, usuario `algopiensa-7360`) | jun-2026 |
 
-Clientes nuevos de POLGAR: **no** toman subdominios directos de `myelplay.com`
-sin pasar por este registro (su middleware ya solo reconoce tenants de su
-allowlist; ver `polgar/frontend/middleware.ts`). Decisión de carril pendiente:
-dominio propio de POLGAR o `*.polgar.myelplay.com`.
+**Carril de POLGAR (decidido 2026-07-06):** sus clientes futuros viven en
+`<cliente>.polgar.myelplay.com` (namespace propio, implementado en
+`polgar/frontend/middleware.ts`). Alta de un cliente de POLGAR: CNAME
+`<cliente>.polgar` → `cname.vercel-dns.com` en Cloudflare + dominio en el
+proyecto Vercel `polgar` + fila aquí. Subdominios directos de
+`myelplay.com` quedan reservados para tiendas del catálogo e infra.
 
 ## Pendientes de infraestructura (2026-07-05)
 
