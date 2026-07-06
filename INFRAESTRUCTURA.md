@@ -31,7 +31,7 @@ crearlo en Cloudflare/Vercel.
 | *(apex)* `myelplay.com` | Paraguas corporativo (landing) | `polgar` · POLGAR | may-2026 |
 | `www` | Paraguas corporativo | `polgar` · POLGAR | may-2026 |
 | `agentes` | **MyelPlay Agentes** (producto/panel) | `catalogointeligente` · POLGAR | jun-2026 |
-| `mamielina` | MyelPlay Agentes — tienda 1 | `catalogointeligente` · POLGAR (**migración en curso**, ver Pendientes) | may-2026 |
+| `mamielina` | MyelPlay Agentes — tienda 1 | `catalogointeligente` · POLGAR (migrado del proyecto viejo el 6-jul) | may-2026 |
 | `gabrielle` | MyelPlay Agentes — tienda 2 | `catalogointeligente` · POLGAR | 2026-07-05 |
 | `app` | Nicómaco (plataforma) | `nicomaco` · nicomaco-s-projects | jun-2026 |
 | `mcjuarez` | Nicómaco — tenant | `nicomaco` · nicomaco-s-projects | jun-2026 |
@@ -44,14 +44,11 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
 
 ## Pendientes de infraestructura (2026-07-05)
 
-- **Migrar `mamielina.myelplay.com` al proyecto vivo**: hoy lo sirve el
-  proyecto `catalogointeligente` VIEJO del team de Nicómaco
-  (`prj_nvXQA22WLMwRIoj6KjtGW5m8GGQ5`, respaldo en `.vercel.foreign-bak/`),
-  que auto-despliega del mismo repo. El dominio ya está agregado al proyecto
-  del team POLGAR en estado *pending verification*; falta crear en Cloudflare
-  el TXT: `_vercel.myelplay.com` = `vc-domain-verify=mamielina.myelplay.com,152ebf69edcf9400a5fe`.
-  Después de verificar (Vercel lo re-checa solo), quitar el dominio del
-  proyecto viejo y recién entonces puede borrarse ese proyecto huérfano.
+- ~~Migrar `mamielina.myelplay.com` al proyecto vivo~~ **HECHO (6-jul)**:
+  TXT nuevo + borrado del TXT viejo → verify OK; el dominio quedó en
+  `catalogointeligente` (team POLGAR) junto a agentes y gabrielle, smoke
+  verde. El `catalogointeligente` viejo del team de Nicómaco ya no sirve
+  nada → **borrable** (igual que `catalogo-mamielina` en albertos-projects).
 - **H3 — dueño de la BD de prod: CERRADO (6-jul).** Dueña:
   `mamielina@myelplay.com` (org `kqsocdyolsnjkvobpsah`); invitados y
   aceptados `nexus@myelplay.com` (la CLI ya ve la BD de prod, verificado) y
