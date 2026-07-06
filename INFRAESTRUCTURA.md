@@ -99,6 +99,11 @@ proyecto Vercel `polgar` + fila aquí. Subdominios directos de
   con aviso de "saltado". Secret del repo: `CRON_SECRET` (= el de Vercel).
 - `npm run test:aislamiento` — suite H10 (84 checks) de que una tienda jamás
   lee/escribe datos de otra; todo en ROLLBACK, seguro contra prod.
+- **Sentry** (errores de runtime del panel + webhooks): proyecto `myelplay-agentes`
+  en `myelplay.sentry.io` (org MyelPlay, capa gratis). Cableado sin
+  `withSentryConfig`; se activa solo con `NEXT_PUBLIC_SENTRY_DSN` (Production +
+  Preview en Vercel; el DSN es público). Las caídas las siguen viendo
+  uptime.yml + smoke.yml; Sentry ve los errores que sí responden pero fallan.
 
 ## Credenciales (inventario — los valores NO van aquí)
 
@@ -113,8 +118,8 @@ proyecto Vercel `polgar` + fila aquí. Subdominios directos de
 | Vercel (Production) | todas las de `.env.example` | SENSITIVE: write-only, `env pull` devuelve vacío |
 | CLIs en esta Mac | Vercel + GitHub (`polgarajedrezinfantil-netizen`), Supabase (`nexus@myelplay.com`), wrangler (`polgarajedrezinfantil@gmail.com`, solo lectura de zona) | |
 
-Falta (decisión/cuenta de Albert): `VOYAGE_API_KEY` (Voyage AI) para encender
-la búsqueda vectorial del agente — hoy cae a búsqueda por palabra clave.
+| sentry.io | org MyelPlay (login admin@myelplay.com) | proyecto `myelplay-agentes`; DSN público en Vercel |
+| Vercel (Prod) | `VOYAGE_API_KEY` | RAG del agente — ENCENDIDO 6-jul (Llavero `voyage-myelplay`) |
 
 ## Aclarado en la limpieza del 2026-07-05
 
