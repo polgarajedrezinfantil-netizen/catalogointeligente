@@ -60,6 +60,38 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
 - Huérfanos fuera del team POLGAR (requieren sus propias cuentas):
   `catalogo-mamielina` (team albertos-projects) y `catalogointeligente` viejo
   (team nicomaco — NO borrar hasta migrar el dominio de mamielina).
+- **Entorno de pruebas** (etapa 2, único punto restante): crear Supabase
+  `myelplay-agentes-dev` (org Myelplay-Nexus vía CLI), aplicar las
+  migraciones, crear bucket `fotos`, y poner en Vercel los envs de
+  **Preview** (hoy solo existe Production: cualquier preview arranca roto)
+  apuntando al proyecto dev. Intentado el 5-jul; requiere visto bueno
+  explícito de Albert para aprovisionar la infra.
+
+## Operación (automatizada, GitHub Actions)
+
+- `uptime.yml` — ping cada 15 min a catálogo/login/landing; GitHub avisa por
+  correo al fallar. OJO: GitHub pausa crons tras 60 días sin commits.
+- `smoke.yml` — en cada deploy de Production: landing, catálogos de ambas
+  tiendas (BD), login branded, webhook Meta (403) y cron SaaS (401).
+- `rag-reindex.yml` — reindexado diario del RAG por tienda (variable de repo
+  `RAG_TIENDAS`). Mientras `VOYAGE_API_KEY` no esté en Vercel sale en verde
+  con aviso de "saltado". Secret del repo: `CRON_SECRET` (= el de Vercel).
+- `npm run test:aislamiento` — suite H10 (84 checks) de que una tienda jamás
+  lee/escribe datos de otra; todo en ROLLBACK, seguro contra prod.
+
+## Credenciales (inventario — los valores NO van aquí)
+
+| Dónde | Entrada | Qué es |
+|---|---|---|
+| Llavero macOS | `supabase-catalogo-db` | password BD prod (`nthbgrjfeorowimktbzy`) |
+| Llavero macOS | `mp-saas-catalogo` | token MP Suscripciones del SaaS |
+| Llavero macOS | `resend-myelplay` | API key Resend (sending-only) |
+| GitHub repo secret | `CRON_SECRET` | mismo valor que en Vercel |
+| Vercel (Production) | todas las de `.env.example` | SENSITIVE: write-only, `env pull` devuelve vacío |
+| CLIs en esta Mac | Vercel + GitHub (`polgarajedrezinfantil-netizen`), Supabase (`nexus@myelplay.com`), wrangler (`polgarajedrezinfantil@gmail.com`, solo lectura de zona) | |
+
+Falta (decisión/cuenta de Albert): `VOYAGE_API_KEY` (Voyage AI) para encender
+la búsqueda vectorial del agente — hoy cae a búsqueda por palabra clave.
 
 ## Aclarado en la limpieza del 2026-07-05
 
