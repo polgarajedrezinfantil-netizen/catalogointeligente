@@ -52,11 +52,15 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
   el TXT: `_vercel.myelplay.com` = `vc-domain-verify=mamielina.myelplay.com,152ebf69edcf9400a5fe`.
   Después de verificar (Vercel lo re-checa solo), quitar el dominio del
   proyecto viejo y recién entonces puede borrarse ese proyecto huérfano.
-- **H3 — dueño de la BD de prod** (`nthbgrjfeorowimktbzy`): la cuenta
-  `nexus@myelplay.com` de la CLI NO la ve (verificado 5-jul: 401 en la
-  Management API). Identificar con qué correo se creó (probar login en
-  supabase.com con `algopiensa@gmail.com` y `alberto.proyectosjrz@gmail.com`),
-  crear org "MyelPlay" como Owner e invitar a `nexus@myelplay.com`.
+- **H3 — dueño de la BD de prod** (`nthbgrjfeorowimktbzy`): **IDENTIFICADO
+  (6-jul): la cuenta dueña es `mamielina@myelplay.com`** (confirmado abriendo
+  el proyecto "catalogo_inteligente" en su dashboard). La cuenta de la CLI
+  (`nexus@myelplay.com`) no la ve hasta ser invitada. Restan: renombrar su
+  org a "MyelPlay", invitar a `nexus@` (Developer) + un Owner de respaldo,
+  activar MFA y guardar credenciales en el Llavero. OJO visto en el
+  dashboard: plan Free ⇒ **"No backups" automáticos** — el respaldo manual
+  verificado del 5-jul (`~/Backups/catalogo/`) es hoy el único; repetirlo
+  periódicamente hasta subir de plan.
 - Huérfanos fuera del team POLGAR (requieren sus propias cuentas):
   `catalogo-mamielina` (team albertos-projects) y `catalogointeligente` viejo
   (team nicomaco — NO borrar hasta migrar el dominio de mamielina).
