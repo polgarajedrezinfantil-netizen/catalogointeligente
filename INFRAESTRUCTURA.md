@@ -69,12 +69,21 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
 - Huérfanos fuera del team POLGAR (requieren sus propias cuentas):
   `catalogo-mamielina` (team albertos-projects) y `catalogointeligente` viejo
   (team nicomaco — NO borrar hasta migrar el dominio de mamielina).
-- **Entorno de pruebas** (etapa 2, único punto restante): crear Supabase
-  `myelplay-agentes-dev` (org Myelplay-Nexus vía CLI), aplicar las
-  migraciones, crear bucket `fotos`, y poner en Vercel los envs de
-  **Preview** (hoy solo existe Production: cualquier preview arranca roto)
-  apuntando al proyecto dev. Intentado el 5-jul; requiere visto bueno
-  explícito de Albert para aprovisionar la infra.
+- **Entorno de pruebas: HECHO (6-jul, con visto bueno de Albert).** Supabase
+  dev `whyqdxwpqdmcpdvrfkke` ("myelplay-agentes-dev", org Myelplay-Nexus —
+  nexus@ es Developer en la org MyelPlay y no puede crear proyectos ahí; si
+  se quiere junto a prod, subirlo a Administrator y transferir): 28
+  migraciones aplicadas, bucket `fotos` public, superadmin
+  `admin@myelplay.com` (password en Llavero `supabase-catalogo-dev-superadmin`),
+  tienda "demo" sembrada. Envs de **Preview** en Vercel (6: Supabase dev +
+  SITE_URL localhost + CRON_SECRET y FIELD_ENCRYPTION_KEY propios de dev).
+  Verificado corriendo la app contra la BD dev (/demo 200 con "Tienda Demo",
+  /admin/login 200). Los previews de Vercel quedan tras SSO del team
+  (Vercel Authentication) — se abren logueado en vercel.com.
+- **mamielina.myelplay.com — verify bloqueado por TXT viejo**: en Cloudflare
+  hay DOS TXT `_vercel` para mamielina; borrar el que termina en
+  `5c33d99ba6fb92da2485` (el del proyecto viejo), conservar el que termina
+  en `152ebf69edcf9400a5fe`, y reintentar el verify.
 
 ## Operación (automatizada, GitHub Actions)
 
@@ -93,6 +102,8 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
 | Dónde | Entrada | Qué es |
 |---|---|---|
 | Llavero macOS | `supabase-catalogo-db` | password BD prod (`nthbgrjfeorowimktbzy`) |
+| Llavero macOS | `supabase-catalogo-dev-db` | password BD dev (`whyqdxwpqdmcpdvrfkke`) |
+| Llavero macOS | `supabase-catalogo-dev-superadmin` | login superadmin del panel en dev |
 | Llavero macOS | `mp-saas-catalogo` | token MP Suscripciones del SaaS |
 | Llavero macOS | `resend-myelplay` | API key Resend (sending-only) |
 | GitHub repo secret | `CRON_SECRET` | mismo valor que en Vercel |
