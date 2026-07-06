@@ -36,6 +36,7 @@ crearlo en Cloudflare/Vercel.
 | `app` | Nicómaco (plataforma) | `nicomaco` · nicomaco-s-projects | jun-2026 |
 | `mcjuarez` | Nicómaco — tenant | `nicomaco` · nicomaco-s-projects | jun-2026 |
 | `polgar` | POLGAR (escuela de ajedrez) | `polgar` · POLGAR | may-2026 |
+| `nexus` | MyelPlay Nexus (portal seguimiento de proyectos) | `myelplay-nexus` · albertos-projects (login: cuenta algopiensa, usuario `algopiensa-7360`) | jun-2026 |
 
 Clientes nuevos de POLGAR: **no** toman subdominios directos de `myelplay.com`
 sin pasar por este registro (su middleware ya solo reconoce tenants de su
@@ -63,9 +64,12 @@ dominio propio de POLGAR o `*.polgar.myelplay.com`.
 - **Cuando haya clientes PAGANDO** (primer cobro MP real): subir a
   **Supabase Pro** (backups diarios gestionados, 7 días) y **Vercel Pro**
   (repo privado — hoy el código es público —, crons nativos, más límites).
-- Huérfanos fuera del team POLGAR (requieren sus propias cuentas):
-  `catalogo-mamielina` (team albertos-projects) y `catalogointeligente` viejo
-  (team nicomaco — NO borrar hasta migrar el dominio de mamielina).
+- Huérfanos fuera del team POLGAR: **LIMPIOS (6-jul, Albert)** — borrados el
+  `catalogointeligente` viejo y `project-gs7fw` (team nicomaco; quedó solo
+  `nicomaco` vivo). `catalogo-mamielina` YA NO EXISTE en albertos-projects
+  (ese team solo tiene `myelplay-nexus`, que es producto vivo en
+  `nexus.myelplay.com` — NO tocar). Pendiente trivial: confirmar en el
+  selector de teams de la cuenta algopiensa que no haya otro team con restos.
 - **Entorno de pruebas: HECHO (6-jul, con visto bueno de Albert).** Supabase
   dev `whyqdxwpqdmcpdvrfkke` ("myelplay-agentes-dev", org Myelplay-Nexus —
   nexus@ es Developer en la org MyelPlay y no puede crear proyectos ahí; si
