@@ -3,6 +3,7 @@ import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { SelectorTiendaNav } from "../SelectorTiendaNav";
 import { CanalIcono, CANAL_NOMBRE } from "./canal";
+import { AutoRefrescar } from "./AutoRefrescar";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,23 @@ function fecha(iso: string) {
   return new Date(iso).toLocaleString("es-MX", {
     day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
   });
+}
+
+// Tiempo relativo para escanear recencia de un vistazo ("hace 5 min", "ayer").
+// La fecha absoluta queda en el title del elemento.
+function hace(iso: string) {
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 45) return "ahora";
+  const rtf = new Intl.RelativeTimeFormat("es-MX", { numeric: "auto" });
+  const min = Math.round(s / 60);
+  if (min < 60) return rtf.format(-min, "minute");
+  const h = Math.round(min / 60);
+  if (h < 24) return rtf.format(-h, "hour");
+  const d = Math.round(h / 24);
+  if (d < 30) return rtf.format(-d, "day");
+  const mes = Math.round(d / 30);
+  if (mes < 12) return rtf.format(-mes, "month");
+  return rtf.format(-Math.round(mes / 12), "year");
 }
 
 /** Tarjeta de una conversación en la bandeja. `urgente` la resalta (handoff). */
@@ -60,7 +78,9 @@ function Tarjeta({
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-        <span className="text-[11px] text-cacao">{fecha(c.ultimo_mensaje_en)}</span>
+        <span className="text-[11px] text-cacao" title={fecha(c.ultimo_mensaje_en)}>
+          {hace(c.ultimo_mensaje_en)}
+        </span>
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${urgente ? "bg-durazno text-white" : est.cls}`}>
           {urgente ? "🙋 Te toca" : est.txt}
         </span>
@@ -131,8 +151,17 @@ export default async function ConversacionesPage({
 
   return (
     <div className="max-w-3xl space-y-6">
+      {/* Refresca la bandeja en vivo (nuevas escaladas aparecen solas). */}
+      <AutoRefrescar segundos={10} />
+
       <div className="space-y-2">
-        <h1 className="font-titulo text-2xl text-durazno">Conversaciones</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="font-titulo text-2xl text-durazno">Conversaciones</h1>
+          <span className="inline-flex items-center gap-1 rounded-full bg-verde-mielina/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-verde-mielina" />
+            En vivo
+          </span>
+        </div>
         <p className="text-sm text-cacao">
           Todos los chats del agente con clientes. Las que necesitan que <strong>tú</strong>{" "}
           respondas aparecen arriba: ábrelas y toca <strong>Tomar control</strong>.
@@ -164,6 +193,13 @@ export default async function ConversacionesPage({
             ))}
           </div>
         </section>
+      )}
+
+      {/* Estado positivo: hay chats pero ninguno espera a un humano. */}
+      {convs.length > 0 && pendientes.length === 0 && (
+        <p className="rounded-[var(--radius-marca)] border border-verde-mielina/30 bg-verde-mielina/10 p-3 text-sm font-semibold text-emerald-800">
+          ✅ Sin pendientes — el agente está atendiendo todo.
+        </p>
       )}
 
       {/* === Sección: el resto (agente / cerradas) === */}

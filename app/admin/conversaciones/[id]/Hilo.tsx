@@ -123,37 +123,39 @@ export function Hilo({
         <div ref={finRef} />
       </div>
 
-      {/* Caja de respuesta: solo cuando el humano tiene el control. */}
-      {estado === "en_humano" ? (
-        <div className="mt-3 flex gap-2">
-          <textarea
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                enviar();
-              }
-            }}
-            rows={2}
-            placeholder="Escribe tu respuesta… (Enter para enviar)"
-            className="flex-1 resize-none rounded-xl border border-miel-borde bg-white px-3 py-2 text-sm text-texto focus:outline-none focus:ring-2 focus:ring-durazno/40"
-          />
-          <button
-            onClick={enviar}
-            disabled={enviando || !texto.trim()}
-            className="rounded-full bg-durazno px-5 py-2 text-sm font-bold text-white disabled:opacity-40"
-          >
-            {enviando ? "…" : "Enviar"}
-          </button>
-        </div>
-      ) : (
-        <p className="mt-3 rounded-xl bg-miel/40 p-3 text-center text-xs text-cacao">
-          {estado === "cerrada"
-            ? "Conversación cerrada. Devuélvela al agente para reactivarla."
-            : "El agente está atendiendo. Toca “Tomar control” para responder tú."}
-        </p>
-      )}
+      {/* Caja de respuesta pegada abajo (en móvil, responder sin hacer scroll). */}
+      <div className="sticky bottom-0 z-10 mt-3 bg-crema/95 pb-1 pt-2 backdrop-blur supports-[backdrop-filter]:bg-crema/80">
+        {estado === "en_humano" ? (
+          <div className="flex gap-2">
+            <textarea
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  enviar();
+                }
+              }}
+              rows={2}
+              placeholder="Escribe tu respuesta… (Enter para enviar)"
+              className="flex-1 resize-none rounded-xl border border-miel-borde bg-white px-3 py-2 text-sm text-texto focus:outline-none focus:ring-2 focus:ring-durazno/40"
+            />
+            <button
+              onClick={enviar}
+              disabled={enviando || !texto.trim()}
+              className="shrink-0 rounded-full bg-durazno px-5 py-2.5 text-sm font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-durazno/50 disabled:opacity-40"
+            >
+              {enviando ? "…" : "Enviar"}
+            </button>
+          </div>
+        ) : (
+          <p className="rounded-xl bg-miel/40 p-3 text-center text-xs text-cacao">
+            {estado === "cerrada"
+              ? "Conversación cerrada. Devuélvela al agente para reactivarla."
+              : "El agente está atendiendo. Toca “Tomar control” para responder tú."}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

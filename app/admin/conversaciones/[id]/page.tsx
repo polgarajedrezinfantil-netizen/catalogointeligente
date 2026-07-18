@@ -57,6 +57,16 @@ export default async function ConversacionPage({
   const estado = conv.estado as keyof typeof ESTADO;
   const est = ESTADO[estado];
 
+  // Teléfono accionable: en WhatsApp el id externo ES el número internacional →
+  // abre el chat en wa.me; en otros canales, un enlace tel: al celular guardado.
+  const cel = conv.cliente_celular?.trim() || null;
+  const waNum = (conv.tipo_canal === "whatsapp" ? conv.cliente_externo_id : "").replace(/\D/g, "");
+  const telHref = waNum
+    ? `https://wa.me/${waNum}`
+    : cel
+      ? `tel:${cel.replace(/[^\d+]/g, "")}`
+      : null;
+
   return (
     <div className="max-w-2xl space-y-4">
       <Link
@@ -78,33 +88,45 @@ export default async function ConversacionPage({
             </div>
             <p className="text-xs text-cacao">
               {CANAL_NOMBRE[conv.tipo_canal ?? ""] ?? conv.tipo_canal}
-              {conv.cliente_celular ? ` · Cel: ${conv.cliente_celular}` : ""}
+              {(cel || waNum) && telHref && (
+                <>
+                  {" · "}
+                  <a
+                    href={telHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-durazno underline-offset-2 hover:underline"
+                  >
+                    {waNum ? "Escribir por WhatsApp" : `Llamar: ${cel}`}
+                  </a>
+                </>
+              )}
             </p>
           </div>
         </div>
 
         {/* Acciones de handoff */}
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {estado === "abierta" && (
-            <form action={tomarControl}>
+            <form action={tomarControl} className="w-full sm:w-auto">
               <input type="hidden" name="conversacion_id" value={conv.id} />
-              <button className="rounded-full bg-durazno px-4 py-2 text-sm font-bold text-white">
+              <button className="w-full rounded-full bg-durazno px-4 py-2.5 text-sm font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-durazno/50 focus-visible:ring-offset-2 sm:w-auto">
                 🙋 Tomar control
               </button>
             </form>
           )}
           {(estado === "en_humano" || estado === "cerrada") && (
-            <form action={devolverAlAgente}>
+            <form action={devolverAlAgente} className="w-full sm:w-auto">
               <input type="hidden" name="conversacion_id" value={conv.id} />
-              <button className="rounded-full bg-verde-mielina px-4 py-2 text-sm font-bold text-white">
+              <button className="w-full rounded-full bg-verde-mielina px-4 py-2.5 text-sm font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-verde-mielina/50 focus-visible:ring-offset-2 sm:w-auto">
                 🤖 Devolver al agente
               </button>
             </form>
           )}
           {estado !== "cerrada" && (
-            <form action={cerrarConversacion}>
+            <form action={cerrarConversacion} className="w-full sm:w-auto">
               <input type="hidden" name="conversacion_id" value={conv.id} />
-              <button className="rounded-full border border-cacao/40 px-4 py-2 text-sm font-bold text-cacao">
+              <button className="w-full rounded-full border border-cacao/40 px-4 py-2.5 text-sm font-bold text-cacao focus:outline-none focus-visible:ring-2 focus-visible:ring-cacao/40 focus-visible:ring-offset-2 sm:w-auto">
                 Cerrar
               </button>
             </form>
