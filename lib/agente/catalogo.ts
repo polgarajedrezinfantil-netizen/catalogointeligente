@@ -19,6 +19,7 @@ export type ProductoAgente = {
   precio: number;
   existencia: number;
   disponible: boolean;
+  estado: string; // fuente de verdad: disponible | apartada | apartada_firme | vendida | agotada
   genero: string | null;
   atributos: Record<string, string>;
   foto: string;
@@ -89,6 +90,7 @@ async function buscarVectorial(
     precio: f.precio,
     existencia: f.existencia,
     disponible: f.disponible,
+    estado: f.disponible ? "disponible" : "no_disponible", // se afina en buscarCatalogo
     genero: f.genero,
     atributos: attrs.get(f.producto_id) ?? {},
     foto: (f.fotos ?? []).map(urlFoto).filter(Boolean)[0] ?? "",
@@ -130,6 +132,7 @@ async function buscarPorKeyword(
       precio: p.precio_oferta != null ? p.precio_oferta : p.precio,
       existencia: p.cantidad,
       disponible: p.estado === "disponible" && p.cantidad > 0,
+      estado: p.estado as string,
       genero: p.genero,
       atributos,
       foto: (p.fotos ?? []).map(urlFoto).filter(Boolean)[0] ?? "",
@@ -167,13 +170,30 @@ export async function buscarCatalogo(
   const limite = Math.min(Math.max(opts.limite ?? 6, 1), 12);
   const soloDisponibles = opts.soloDisponibles ?? true;
 
+  let resultados: ProductoAgente[] = [];
   if (embeddingsActivos()) {
     try {
-      return await buscarVectorial(tiendaId, consulta, limite, soloDisponibles);
+      resultados = await buscarVectorial(tiendaId, consulta, limite, soloDisponibles);
     } catch (e) {
       // Nunca dejamos al agente sin catálogo: caemos a keyword.
       console.error("[agente] búsqueda vectorial falló, uso keyword:", e);
+      resultados = await buscarPorKeyword(tiendaId, consulta, limite, soloDisponibles);
     }
+  } else {
+    resultados = await buscarPorKeyword(tiendaId, consulta, limite, soloDisponibles);
   }
-  return buscarPorKeyword(tiendaId, consulta, limite, soloDisponibles);
+
+  // Estado REAL del catálogo (fuente de verdad) para cada resultado, para que el
+  // agente pueda decir "vendida"/"apartada"/"agotada" al preguntar por una pieza.
+  if (resultados.length) {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("productos")
+      .select("id, estado")
+      .in("id", resultados.map((r) => r.id));
+    const estados = new Map((data ?? []).map((p) => [p.id as string, p.estado as string]));
+    for (const r of resultados) r.estado = estados.get(r.id) ?? r.estado;
+  }
+
+  return resultados;
 }

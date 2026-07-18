@@ -13,7 +13,7 @@ const MODELO = "claude-opus-4-8";
 const TOOL_BUSCAR: Anthropic.Tool = {
   name: "buscar_catalogo",
   description:
-    "Busca productos REALES de la tienda por palabras clave (tipo de prenda, color, talla/edad, género, ocasión). Úsala SIEMPRE antes de mencionar productos, precios o existencia — nunca inventes. Devuelve hasta 6 productos con id, nombre, precio, existencia, disponibilidad, género y atributos.",
+    "Busca productos REALES de la tienda por palabras clave (tipo de prenda, color, talla/edad, género, ocasión). Úsala SIEMPRE antes de mencionar productos, precios o existencia — nunca inventes. Devuelve hasta 6 productos con id, nombre, precio, existencia, disponibilidad, género, atributos y ESTADO real (disponible/apartada/apartada_firme/vendida/agotada). El catálogo es la ÚNICA fuente de verdad del estado de una pieza. Si el cliente pregunta por una pieza ESPECÍFICA (por su nombre o te mandó una foto), pon solo_disponibles=false para verla aunque ya no esté disponible y decirle su estado real (p.ej. 'ese ya se vendió').",
   input_schema: {
     type: "object",
     additionalProperties: false,
@@ -24,7 +24,8 @@ const TOOL_BUSCAR: Anthropic.Tool = {
       },
       solo_disponibles: {
         type: "boolean",
-        description: "Si true, solo trae piezas en existencia (default true).",
+        description:
+          "true (default): solo trae piezas disponibles, para recomendar. Ponlo en FALSE cuando quieras el estado real de una pieza específica (así también trae vendidas/apartadas/agotadas para poder informar su estado).",
       },
     },
     required: ["consulta"],
