@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { enviarReciboPago } from "@/lib/agente/recibo";
 
 // Acciones de la bandeja. Corren con el cliente de SESIÓN: la RLS garantiza que
 // el admin/delegado solo toca conversaciones de SU tienda, y el superadmin las
@@ -176,6 +177,7 @@ export type ResultadoComprobante = {
 export async function decidirComprobante(
   mensajeId: string,
   decision: "aprobado" | "rechazado",
+  correo?: string,
 ): Promise<ResultadoComprobante> {
   const perfil = await getPerfil();
   const esSuper = perfil?.rol === "superadmin";
@@ -203,8 +205,12 @@ export async function decidirComprobante(
     .eq("id", mensajeId)
     .eq("tienda_id", tienda);
 
-  // Al aprobar: marca pagado el pedido pendiente ligado a la conversación.
+  // Al aprobar: marca pagado el pedido pendiente ligado a la conversación y, si
+  // dieron un correo, manda el recibo.
   let pedidoInfo: { folio: number; total: number } | null = null;
+  let reciboA: string | null = null;
+  const correoLimpio = (correo ?? "").trim();
+  const correoValido = /.+@.+\..+/.test(correoLimpio);
   if (decision === "aprobado") {
     const { data: ventas } = await svc
       .from("agente_ventas")
@@ -227,6 +233,11 @@ export async function decidirComprobante(
         if ((res as { ok?: boolean } | null)?.ok) {
           pedidoInfo = { folio: ped.folio as number, total: Number(ped.total) };
         }
+        // Recibo por correo (best-effort; requiere Resend configurado).
+        if (correoValido) {
+          await enviarReciboPago(ped.id as string, correoLimpio);
+          reciboA = correoLimpio;
+        }
       }
     }
   }
@@ -235,7 +246,9 @@ export async function decidirComprobante(
     decision === "rechazado"
       ? `❌ Comprobante rechazado por ${perfil.nombre}.`
       : pedidoInfo
-        ? `✅ Comprobante aprobado por ${perfil.nombre}. Pedido #${pedidoInfo.folio} marcado como PAGADO.`
+        ? `✅ Comprobante aprobado por ${perfil.nombre}. Pedido #${pedidoInfo.folio} marcado como PAGADO.${
+            reciboA ? ` Recibo enviado a ${reciboA}.` : ""
+          }`
         : `✅ Comprobante aprobado por ${perfil.nombre}.`;
 
   const { data: nota } = await svc

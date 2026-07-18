@@ -43,6 +43,7 @@ export function Hilo({
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [decidiendo, setDecidiendo] = useState<string | null>(null);
+  const [correos, setCorreos] = useState<Record<string, string>>({}); // correo del recibo por mensaje
   const finRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -105,10 +106,10 @@ export function Hilo({
 
   // Aprobar / rechazar un comprobante: server action (marca el pedido pagado si
   // hay uno pendiente y deja nota en el hilo).
-  async function decidir(m: Mensaje, decision: "aprobado" | "rechazado") {
+  async function decidir(m: Mensaje, decision: "aprobado" | "rechazado", correo?: string) {
     if (decidiendo) return;
     setDecidiendo(m.id);
-    const res = await decidirComprobante(m.id, decision);
+    const res = await decidirComprobante(m.id, decision, correo);
     if (!res?.ok) {
       alert("No se pudo procesar: " + (res?.error ?? "error"));
       setDecidiendo(null);
@@ -199,22 +200,32 @@ export function Hilo({
                       {meta.comprobante_estado === "aprobado" ? "✅ Comprobante aprobado" : "❌ Comprobante rechazado"}
                     </span>
                   ) : (
-                    <div className="mt-1.5 flex items-center gap-1.5">
-                      <span className="text-[10px] font-semibold text-cacao">Comprobante:</span>
-                      <button
-                        onClick={() => decidir(m, "aprobado")}
-                        disabled={decidiendo === m.id}
-                        className="rounded-full bg-verde-mielina px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
-                      >
-                        {decidiendo === m.id ? "…" : "Aprobar"}
-                      </button>
-                      <button
-                        onClick={() => decidir(m, "rechazado")}
-                        disabled={decidiendo === m.id}
-                        className="rounded-full bg-coral px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
-                      >
-                        Rechazar
-                      </button>
+                    <div className="mt-1.5 space-y-1">
+                      <p className="text-[10px] font-semibold text-cacao">Comprobante de pago</p>
+                      <input
+                        type="email"
+                        inputMode="email"
+                        value={correos[m.id] ?? ""}
+                        onChange={(e) => setCorreos((c) => ({ ...c, [m.id]: e.target.value }))}
+                        placeholder="Correo para el recibo (opcional)"
+                        className="w-full rounded-lg border border-miel-borde bg-white px-2 py-1 text-[11px] text-texto placeholder:text-cacao/70 focus:outline-none focus:ring-2 focus:ring-durazno/40"
+                      />
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => decidir(m, "aprobado", correos[m.id])}
+                          disabled={decidiendo === m.id}
+                          className="rounded-full bg-verde-mielina px-2.5 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                        >
+                          {decidiendo === m.id ? "…" : "Aprobar"}
+                        </button>
+                        <button
+                          onClick={() => decidir(m, "rechazado")}
+                          disabled={decidiendo === m.id}
+                          className="rounded-full bg-coral px-2.5 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                        >
+                          Rechazar
+                        </button>
+                      </div>
                     </div>
                   )
                 )}
