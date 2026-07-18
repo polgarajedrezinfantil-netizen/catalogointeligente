@@ -244,6 +244,20 @@ export default async function ConfiguracionPage() {
               className={`mt-1 w-full ${inputCls}`}
             />
           </label>
+          <label className="text-sm font-semibold text-cacao sm:col-span-2">
+            Píxel de Meta (para anuncios dinámicos)
+            <input
+              name="meta_pixel_id"
+              defaultValue={tienda.meta_pixel_id ?? ""}
+              placeholder="Ej. 1234567890123456 (solo el número del píxel)"
+              inputMode="numeric"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+            <span className="mt-1 block text-xs font-normal text-cacao/60">
+              Lo encuentras en Meta Events Manager → tu píxel → ID. Con esto el
+              catálogo manda ViewContent y AddToCart para retargeting.
+            </span>
+          </label>
           <label className="text-sm font-semibold text-cacao">
             Dirección
             <input

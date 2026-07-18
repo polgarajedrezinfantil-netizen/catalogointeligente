@@ -88,6 +88,8 @@ export async function guardarContacto(formData: FormData) {
       direccion: textoONull(formData.get("direccion")),
       horario: textoONull(formData.get("horario")),
       bio: textoONull(formData.get("bio")),
+      // Solo dígitos: el pixel id de Meta es numérico (15-16 dígitos).
+      meta_pixel_id: (String(formData.get("meta_pixel_id") || "").replace(/\D/g, "") || null),
       actualizado: new Date().toISOString(),
     })
     .eq("id", tienda_id);

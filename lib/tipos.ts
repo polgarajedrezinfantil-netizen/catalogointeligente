@@ -60,6 +60,8 @@ export type Tienda = {
   apagada_por_impago: boolean;
   // Landing de bienvenida antes del catálogo (0029); false = va directo al catálogo.
   landing_activa: boolean;
+  // Píxel de Meta (0031): retargeting dinámico del catálogo.
+  meta_pixel_id: string | null;
 };
 
 // Guía de tallas: tabla de referencia (encabezados + filas de celdas).

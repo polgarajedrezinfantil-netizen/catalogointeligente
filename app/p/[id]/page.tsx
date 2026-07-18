@@ -8,6 +8,7 @@ import { temaStyle } from "@/lib/tema";
 import { hexDeColor } from "@/lib/colores";
 import type { Campo, Linea, Producto, Tienda } from "@/lib/tipos";
 import { BotonCompartir } from "@/components/BotonCompartir";
+import MetaPixel from "@/components/MetaPixel";
 
 // Carga el producto (de una tienda activa y visible) junto con su tienda.
 async function cargar(id: string) {
@@ -98,6 +99,15 @@ export default async function ProductoCompartido({
       className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col bg-white shadow-xl"
       style={temaStyle(tienda.tema)}
     >
+      <MetaPixel
+        pixelId={tienda.meta_pixel_id}
+        viewContent={{
+          id: producto.id,
+          nombre: producto.nombre,
+          precio: precioEfectivo(producto),
+          moneda: tienda.moneda,
+        }}
+      />
       {/* Encabezado de la tienda (lleva al catálogo) */}
       <Link href={`/${tienda.slug}`} className="flex items-center gap-2.5 border-b border-miel-borde bg-white px-4 py-2.5">
         <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-tr from-sol via-durazno to-coral p-[2px]">

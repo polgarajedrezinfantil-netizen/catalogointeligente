@@ -7,6 +7,7 @@ import { temaStyle } from "@/lib/tema";
 import type { Campo, GuiaTallas, Linea, Nido, Producto, Tienda } from "@/lib/tipos";
 import { CapturaCliente } from "./CapturaCliente";
 import { CatalogoCliente } from "./CatalogoCliente";
+import MetaPixel from "@/components/MetaPixel";
 import { BarraInferior } from "./BarraInferior";
 import { BannerNovedades } from "./BannerNovedades";
 import { HeroBoutique } from "./HeroBoutique";
@@ -144,6 +145,7 @@ export default async function CatalogoPublico({
       style={temaStyle(tienda.tema)}
     >
       <CapturaCliente tiendaId={tienda.id} />
+      <MetaPixel pixelId={tienda.meta_pixel_id} />
 
       {/* Portada / banner (opcional) */}
       {tienda.banner_url && (

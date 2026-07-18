@@ -7,6 +7,7 @@ import { urlFoto } from "@/lib/fotos";
 import { hexDeColor } from "@/lib/colores";
 import type { Campo, EstadoProducto, GuiaTallas, Linea, Nido, Producto } from "@/lib/tipos";
 import { datosClienteLocal } from "./CapturaCliente";
+import { trackAddToCart } from "@/components/MetaPixel";
 
 const ETIQUETA: Record<EstadoProducto, { txt: string; cls: string }> = {
   disponible: { txt: "Disponible", cls: "bg-verde-mielina text-white" },
@@ -1014,6 +1015,13 @@ function DetalleProducto({
       setAviso("Ya no está disponible.");
     } else if (r === "apartado") {
       setAviso("¡Apartado para ti! Lo guardamos en tu carrito 🛒");
+      // Píxel de Meta: apartar = AddToCart (content_ids = id del producto).
+      trackAddToCart({
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: precioEfectivo(producto),
+        moneda: (tienda as { moneda?: string }).moneda,
+      });
     } else if (r === "fuera" || r === "liberado") {
       setPos(null);
     }
