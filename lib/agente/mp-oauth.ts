@@ -177,6 +177,18 @@ export async function estadoMP(
   };
 }
 
+/** Public key de MP de la tienda (para inicializar el SDK del Payment Brick). */
+export async function publicKeyDe(tiendaId: string): Promise<string | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("agente_secretos")
+    .select("mp_conectado, mp_public_key")
+    .eq("tienda_id", tiendaId)
+    .maybeSingle();
+  if (!data?.mp_conectado) return null;
+  return (data.mp_public_key as string | null) ?? null;
+}
+
 /** Comisión (%) configurada para la tienda. */
 export async function comisionPct(tiendaId: string): Promise<number> {
   const supabase = createServiceClient();

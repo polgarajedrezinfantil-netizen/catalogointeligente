@@ -69,6 +69,29 @@ export async function crearLinkPago(params: {
   const items = (pedido.items ?? []) as ItemPedido[];
   const omitidos = (pedido.omitidos ?? 0) as number;
 
+  // Tienda con MP propio (OAuth): en vez del checkout hospedado de MP, mandamos
+  // a una página de pago con SU marca (Payment Brick embebido). El cobro se crea
+  // en /api/agente/pago/procesar con el token de la tienda.
+  if (propio) {
+    await supabase.from("agente_ventas").insert({
+      tienda_id: params.tiendaId,
+      conversacion_id: params.conversacionId,
+      pedido_id: pedidoId,
+      canal: params.canal,
+      monto: total,
+      estado: "link_enviado",
+    });
+    return {
+      ok: true,
+      url: `${baseUrl()}/${params.tiendaSlug}/pagar/${pedidoId}`,
+      folio,
+      total,
+      pedidoId,
+      items,
+      omitidos,
+    };
+  }
+
   // 2) Comisión del marketplace (solo si la tienda usa su propia cuenta).
   const pct = propio ? await comisionPct(params.tiendaId) : 0;
   const fee = pct > 0 ? Math.round((total * pct) / 100) : 0;
