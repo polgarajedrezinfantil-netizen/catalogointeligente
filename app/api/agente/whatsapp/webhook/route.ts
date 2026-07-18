@@ -4,7 +4,7 @@ import {
   mensajeExisteExterno,
 } from "@/lib/agente/persistencia";
 import { responder } from "@/lib/agente/responder";
-import { enviarWhatsApp } from "@/lib/agente/whatsapp";
+import { enviarWhatsApp, descargarMediaWhatsApp } from "@/lib/agente/whatsapp";
 
 // Webhook de WhatsApp (Meta Cloud API).
 //   GET  -> verificación del webhook (hub.challenge).
@@ -49,6 +49,7 @@ type WaMessage = {
   from: string;
   type: string;
   text?: { body?: string };
+  image?: { id?: string; mime_type?: string; caption?: string };
 };
 type WaContact = { wa_id?: string; profile?: { name?: string } };
 
@@ -101,16 +102,29 @@ export async function POST(req: Request) {
             value.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name ??
             value.contacts?.[0]?.profile?.name;
 
-          const texto =
-            msg.type === "text"
-              ? msg.text?.body?.trim() || ""
-              : `[El cliente envió un mensaje de tipo "${msg.type}". Por ahora solo puedo leer texto.]`;
+          // Texto directo o imagen (visión). Los media de WhatsApp son
+          // temporales: la imagen solo se usa en ESTE turno.
+          let imagen: { base64: string; mime: string } | undefined;
+          let texto: string;
+          if (msg.type === "text") {
+            texto = msg.text?.body?.trim() || "";
+          } else if (msg.type === "image" && msg.image?.id) {
+            imagen = (await descargarMediaWhatsApp(msg.image.id)) ?? undefined;
+            texto =
+              msg.image.caption?.trim() ||
+              (imagen
+                ? "[El cliente envió una imagen]"
+                : "[El cliente envió una imagen que no se pudo descargar]");
+          } else {
+            texto = `[El cliente envió un mensaje de tipo "${msg.type}". Por ahora solo puedo leer texto e imágenes.]`;
+          }
 
           const r = await responder({
             tiendaSlug: tienda.slug,
             canal: "whatsapp",
             clienteExternoId: msg.from,
             texto,
+            imagen,
             externalId: msg.id,
             clienteNombre: nombre,
             clienteCelular: msg.from,

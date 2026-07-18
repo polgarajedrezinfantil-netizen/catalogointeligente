@@ -93,6 +93,7 @@ export async function correrAgente(params: {
   conversacionId: string;
   canal: string;
   clienteExternoId: string;
+  imagen?: { base64: string; mime: string };
 }): Promise<ResultadoAgente> {
   const {
     sistema,
@@ -103,6 +104,7 @@ export async function correrAgente(params: {
     conversacionId,
     canal,
     clienteExternoId,
+    imagen,
   } = params;
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -110,6 +112,26 @@ export async function correrAgente(params: {
     role: m.role,
     content: m.content,
   }));
+
+  // Visión: adjunta la imagen del cliente al último mensaje (solo este turno).
+  const ultimo = messages[messages.length - 1];
+  if (imagen && ultimo?.role === "user") {
+    const t = typeof ultimo.content === "string" ? ultimo.content : "";
+    ultimo.content = [
+      {
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: imagen.mime as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+          data: imagen.base64,
+        },
+      },
+      {
+        type: "text",
+        text: t || "El cliente envió esta imagen. Identifica el producto que muestra y búscalo en el catálogo real con buscar_catalogo.",
+      },
+    ];
+  }
 
   const usage = { input: 0, output: 0 };
   const herramientas: string[] = [];

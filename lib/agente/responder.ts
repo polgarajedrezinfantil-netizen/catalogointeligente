@@ -30,8 +30,9 @@ export async function responder(params: {
   externalId?: string;     // id del mensaje en Meta (dedupe)
   clienteNombre?: string;  // nombre del perfil del canal
   clienteCelular?: string; // teléfono del cliente (wa_id)
+  imagen?: { base64: string; mime: string }; // imagen del cliente (visión, este turno)
 }): Promise<RespuestaAgente> {
-  const { tiendaSlug, canal, clienteExternoId, texto, externalId, clienteNombre, clienteCelular } = params;
+  const { tiendaSlug, canal, clienteExternoId, texto, externalId, clienteNombre, clienteCelular, imagen } = params;
 
   const tienda = await obtenerTiendaPorSlug(tiendaSlug);
   if (!tienda) throw new Error(`Tienda no encontrada o inactiva: ${tiendaSlug}`);
@@ -88,6 +89,7 @@ export async function responder(params: {
     conversacionId: conv.id,
     canal,
     clienteExternoId,
+    imagen,
   });
 
   await guardarMensaje({
