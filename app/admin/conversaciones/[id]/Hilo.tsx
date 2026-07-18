@@ -104,8 +104,8 @@ export function Hilo({
           const burbuja = esCliente
             ? "bg-white text-texto"
             : m.rol === "humano"
-              ? "bg-durazno/30 text-[#7a3a26]"
-              : "bg-verde-mielina/25 text-[#3f5a1c]";
+              ? "bg-durazno/15 text-durazno"
+              : "bg-verde-mielina/15 text-emerald-800";
           return (
             <div key={m.id} className={`flex ${esCliente ? "justify-start" : "justify-end"}`}>
               <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${burbuja}`}>
@@ -148,7 +148,7 @@ export function Hilo({
           </button>
         </div>
       ) : (
-        <p className="mt-3 rounded-xl bg-miel/20 p-3 text-center text-xs text-[#7a5a14]">
+        <p className="mt-3 rounded-xl bg-miel/40 p-3 text-center text-xs text-cacao">
           {estado === "cerrada"
             ? "Conversación cerrada. Devuélvela al agente para reactivarla."
             : "El agente está atendiendo. Toca “Tomar control” para responder tú."}

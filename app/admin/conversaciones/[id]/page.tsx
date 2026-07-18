@@ -3,19 +3,13 @@ import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Hilo, type Mensaje } from "./Hilo";
 import { tomarControl, devolverAlAgente, cerrarConversacion } from "../actions";
+import { CanalIcono, CANAL_NOMBRE } from "../canal";
 
 export const dynamic = "force-dynamic";
 
-const CANAL: Record<string, string> = {
-  simulacion: "🧪 Simulación",
-  whatsapp: "WhatsApp",
-  messenger: "Messenger",
-  instagram: "Instagram",
-};
-
 const ESTADO = {
-  abierta: { txt: "🤖 Agente", cls: "bg-verde-mielina/25 text-[#3f5a1c]" },
-  en_humano: { txt: "🙋 En atención humana", cls: "bg-durazno/30 text-[#7a3a26]" },
+  abierta: { txt: "🤖 Agente", cls: "bg-verde-mielina/15 text-emerald-800" },
+  en_humano: { txt: "🙋 En atención humana", cls: "bg-durazno/15 text-durazno" },
   cerrada: { txt: "Cerrada", cls: "bg-cacao/20 text-cacao" },
 } as const;
 
@@ -73,16 +67,21 @@ export default async function ConversacionPage({
       </Link>
 
       <div className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-titulo text-xl text-coral">
-            {conv.cliente_nombre || conv.cliente_externo_id}
-          </span>
-          <span className="text-xs text-cacao">{CANAL[conv.tipo_canal ?? ""] ?? conv.tipo_canal}</span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${est.cls}`}>{est.txt}</span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <CanalIcono canal={conv.tipo_canal} size={38} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-titulo text-xl text-coral">
+                {conv.cliente_nombre || conv.cliente_externo_id}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${est.cls}`}>{est.txt}</span>
+            </div>
+            <p className="text-xs text-cacao">
+              {CANAL_NOMBRE[conv.tipo_canal ?? ""] ?? conv.tipo_canal}
+              {conv.cliente_celular ? ` · Cel: ${conv.cliente_celular}` : ""}
+            </p>
+          </div>
         </div>
-        {conv.cliente_celular && (
-          <p className="mt-1 text-xs text-cacao">Cel: {conv.cliente_celular}</p>
-        )}
 
         {/* Acciones de handoff */}
         <div className="mt-3 flex flex-wrap gap-2">
