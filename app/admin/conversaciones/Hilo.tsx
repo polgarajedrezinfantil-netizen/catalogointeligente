@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { decidirComprobante } from "./actions";
 
 export type Adjunto = { tipo?: string; url: string; mime?: string };
 
@@ -102,32 +103,39 @@ export function Hilo({
     setEnviando(false);
   }
 
-  // Aprobar / rechazar un comprobante de pago: marca el mensaje y deja nota.
-  async function decidirComprobante(m: Mensaje, decision: "aprobado" | "rechazado") {
+  // Aprobar / rechazar un comprobante: server action (marca el pedido pagado si
+  // hay uno pendiente y deja nota en el hilo).
+  async function decidir(m: Mensaje, decision: "aprobado" | "rechazado") {
     if (decidiendo) return;
     setDecidiendo(m.id);
-    const nuevoMeta = { ...(m.meta ?? {}), comprobante_estado: decision };
-    const { error } = await supabase.from("agente_mensajes").update({ meta: nuevoMeta }).eq("id", m.id);
-    if (error) {
-      alert("No se pudo guardar: " + error.message);
+    const res = await decidirComprobante(m.id, decision);
+    if (!res?.ok) {
+      alert("No se pudo procesar: " + (res?.error ?? "error"));
       setDecidiendo(null);
       return;
     }
-    const nota =
-      decision === "aprobado"
-        ? "✅ Comprobante aprobado por el equipo."
-        : "❌ Comprobante rechazado por el equipo.";
-    const { data } = await supabase
-      .from("agente_mensajes")
-      .insert({ conversacion_id: conversacionId, tienda_id: tiendaId, rol: "sistema", contenido: nota })
-      .select(COLS)
-      .single();
     setMensajes((prev) => {
-      const upd = prev.map((x) => (x.id === m.id ? { ...x, meta: nuevoMeta } : x));
-      return data ? [...upd, data as Mensaje] : upd;
+      const upd = prev.map((x) =>
+        x.id === m.id
+          ? { ...x, meta: { ...(x.meta ?? {}), comprobante: true, comprobante_estado: decision } }
+          : x,
+      );
+      if (res.nota && !upd.some((x) => x.id === res.nota!.id)) upd.push(res.nota as Mensaje);
+      return upd;
     });
-    await tocaUltimoMensaje();
     setDecidiendo(null);
+  }
+
+  // Marcar manualmente una imagen como comprobante (si el detector la omitió),
+  // para que aparezcan los botones Aprobar/Rechazar.
+  async function marcarComprobante(m: Mensaje) {
+    const nuevoMeta = { ...(m.meta ?? {}), comprobante: true };
+    const { error } = await supabase.from("agente_mensajes").update({ meta: nuevoMeta }).eq("id", m.id);
+    if (error) {
+      alert("No se pudo marcar: " + error.message);
+      return;
+    }
+    setMensajes((prev) => prev.map((x) => (x.id === m.id ? { ...x, meta: nuevoMeta } : x)));
   }
 
   return (
@@ -194,14 +202,14 @@ export function Hilo({
                     <div className="mt-1.5 flex items-center gap-1.5">
                       <span className="text-[10px] font-semibold text-cacao">Comprobante:</span>
                       <button
-                        onClick={() => decidirComprobante(m, "aprobado")}
+                        onClick={() => decidir(m, "aprobado")}
                         disabled={decidiendo === m.id}
                         className="rounded-full bg-verde-mielina px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
                       >
-                        Aprobar
+                        {decidiendo === m.id ? "…" : "Aprobar"}
                       </button>
                       <button
-                        onClick={() => decidirComprobante(m, "rechazado")}
+                        onClick={() => decidir(m, "rechazado")}
                         disabled={decidiendo === m.id}
                         className="rounded-full bg-coral px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
                       >
@@ -209,6 +217,16 @@ export function Hilo({
                       </button>
                     </div>
                   )
+                )}
+
+                {/* Marcar manualmente como comprobante (si el detector la omitió) */}
+                {esCliente && imgs.length > 0 && !meta.comprobante && !meta.comprobante_estado && (
+                  <button
+                    onClick={() => marcarComprobante(m)}
+                    className="mt-1 block text-[10px] font-semibold text-cacao underline underline-offset-2 hover:text-durazno"
+                  >
+                    Marcar como comprobante
+                  </button>
                 )}
 
                 <span className="mt-0.5 block text-right text-[10px] opacity-50">{hora(m.creado)}</span>
