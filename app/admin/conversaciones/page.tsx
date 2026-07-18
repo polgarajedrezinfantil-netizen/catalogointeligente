@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function ConversacionesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tienda?: string; c?: string }>;
+  searchParams: Promise<{ tienda?: string; c?: string; arch?: string }>;
 }) {
   const perfil = await getPerfil();
   const esSuper = perfil?.rol === "superadmin";
@@ -19,6 +19,7 @@ export default async function ConversacionesPage({
   }
   const sp = await searchParams;
   const c = typeof sp.c === "string" && sp.c ? sp.c : null;
+  const arch = sp.arch === "1"; // ver archivadas
   const supabase = await createClient();
 
   // El superadmin elige qué tienda monitorear; el admin ve la suya.
@@ -51,6 +52,7 @@ export default async function ConversacionesPage({
     .from("agente_conversaciones")
     .select("id, tipo_canal, cliente_externo_id, cliente_nombre, estado, ultimo_mensaje_en")
     .eq("tienda_id", t)
+    .eq("archivada", arch)
     .order("ultimo_mensaje_en", { ascending: false })
     .limit(100);
   const convs = (convData ?? []) as ConvLista[];
@@ -75,9 +77,14 @@ export default async function ConversacionesPage({
   }
 
   const tiendaParam = esSuper ? t : null;
-  const listaHref = tiendaParam
-    ? `/admin/conversaciones?tienda=${tiendaParam}`
-    : "/admin/conversaciones";
+  // Enlace a la lista actual (sin ?c=), preservando tienda y modo archivadas.
+  const listaHref = (() => {
+    const p = new URLSearchParams();
+    if (tiendaParam) p.set("tienda", tiendaParam);
+    if (arch) p.set("arch", "1");
+    const qs = p.toString();
+    return qs ? `/admin/conversaciones?${qs}` : "/admin/conversaciones";
+  })();
   const alturaPane = "h-[calc(100dvh-11rem)] md:h-[calc(100vh-9.5rem)]";
 
   return (
@@ -101,7 +108,7 @@ export default async function ConversacionesPage({
       <div className="grid gap-4 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         {/* Izquierda: lista de chats (en móvil se oculta al abrir un chat) */}
         <div className={`${alturaPane} min-h-0 ${c ? "hidden md:block" : "block"}`}>
-          <ListaChats convs={convs} previews={previews} selected={c} tienda={tiendaParam} />
+          <ListaChats convs={convs} previews={previews} selected={c} tienda={tiendaParam} arch={arch} />
         </div>
 
         {/* Derecha: la conversación (o el marcador de posición) */}

@@ -24,11 +24,13 @@ export function ListaChats({
   previews,
   selected,
   tienda,
+  arch,
 }: {
   convs: ConvLista[];
   previews: Record<string, string>;
   selected: string | null;
   tienda: string | null;
+  arch: boolean;
 }) {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<"todas" | "pendientes">("todas");
@@ -57,8 +59,17 @@ export function ListaChats({
   const href = (id: string) => {
     const p = new URLSearchParams();
     if (tienda) p.set("tienda", tienda);
+    if (arch) p.set("arch", "1");
     p.set("c", id);
     return `/admin/conversaciones?${p.toString()}`;
+  };
+
+  const navHref = (verArchivadas: boolean) => {
+    const p = new URLSearchParams();
+    if (tienda) p.set("tienda", tienda);
+    if (verArchivadas) p.set("arch", "1");
+    const qs = p.toString();
+    return qs ? `/admin/conversaciones?${qs}` : "/admin/conversaciones";
   };
 
   const tabCls = (activo: boolean) =>
@@ -70,6 +81,11 @@ export function ListaChats({
     <div className="flex h-full min-h-0 flex-col rounded-[var(--radius-marca)] border border-miel-borde bg-white">
       {/* Buscador + pestañas */}
       <div className="shrink-0 space-y-2 border-b border-miel-borde p-2.5">
+        {arch && (
+          <Link href={navHref(false)} className="inline-flex items-center gap-1 text-xs font-semibold text-durazno">
+            ← Volver a activas
+          </Link>
+        )}
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cacao">🔍</span>
           <input
@@ -79,26 +95,36 @@ export function ListaChats({
             className="w-full rounded-full border border-miel-borde bg-crema/60 py-2 pl-9 pr-3 text-sm text-texto placeholder:text-cacao/70 focus:outline-none focus:ring-2 focus:ring-durazno/40"
           />
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setTab("pendientes")} className={tabCls(tab === "pendientes")}>
-            🔔 Pendientes
-            {pendientesCount > 0 && (
-              <span
-                className={`rounded-full px-1.5 text-[10px] ${
-                  tab === "pendientes" ? "bg-white/25" : "bg-durazno text-white"
-                }`}
-              >
-                {pendientesCount}
+        {arch ? (
+          <p className="px-1 text-xs font-bold text-cacao">🗄 Archivadas ({convs.length})</p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setTab("pendientes")} className={tabCls(tab === "pendientes")}>
+              🔔 Pendientes
+              {pendientesCount > 0 && (
+                <span
+                  className={`rounded-full px-1.5 text-[10px] ${
+                    tab === "pendientes" ? "bg-white/25" : "bg-durazno text-white"
+                  }`}
+                >
+                  {pendientesCount}
+                </span>
+              )}
+            </button>
+            <button type="button" onClick={() => setTab("todas")} className={tabCls(tab === "todas")}>
+              Todas
+              <span className={`rounded-full px-1.5 text-[10px] ${tab === "todas" ? "bg-white/25" : "bg-cacao/20 text-cacao"}`}>
+                {convs.length}
               </span>
-            )}
-          </button>
-          <button type="button" onClick={() => setTab("todas")} className={tabCls(tab === "todas")}>
-            Todas
-            <span className={`rounded-full px-1.5 text-[10px] ${tab === "todas" ? "bg-white/25" : "bg-cacao/20 text-cacao"}`}>
-              {convs.length}
-            </span>
-          </button>
-        </div>
+            </button>
+            <Link
+              href={navHref(true)}
+              className="ml-auto rounded-full px-2 py-1 text-xs font-semibold text-cacao hover:bg-miel/40"
+            >
+              🗄 Archivadas
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Lista */}
@@ -107,9 +133,11 @@ export function ListaChats({
           <p className="p-6 text-center text-sm text-cacao">
             {q
               ? "Sin resultados para tu búsqueda."
-              : tab === "pendientes"
-                ? "Sin pendientes 🎉"
-                : "Aún no hay conversaciones."}
+              : arch
+                ? "No hay conversaciones archivadas."
+                : tab === "pendientes"
+                  ? "Sin pendientes 🎉"
+                  : "Aún no hay conversaciones."}
           </p>
         ) : (
           lista.map((c) => {

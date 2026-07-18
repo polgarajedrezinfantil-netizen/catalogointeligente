@@ -2,7 +2,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Hilo, type Mensaje } from "./Hilo";
 import { CanalIcono, CANAL_NOMBRE } from "./canal";
-import { tomarControl, devolverAlAgente, cerrarConversacion } from "./actions";
+import { BotonEliminar } from "./BotonEliminar";
+import {
+  tomarControl,
+  devolverAlAgente,
+  cerrarConversacion,
+  archivarConversacion,
+  desarchivarConversacion,
+  eliminarConversacion,
+} from "./actions";
 
 // Columna derecha: la conversación seleccionada. Encabezado con el switch de IA
 // (encendida = responde el agente / apagada = respondes tú), teléfono accionable
@@ -25,7 +33,7 @@ export async function PanelConversacion({
   // superadmin ve cualquiera.
   let q = supabase
     .from("agente_conversaciones")
-    .select("id, tienda_id, tipo_canal, cliente_externo_id, cliente_nombre, cliente_celular, estado")
+    .select("id, tienda_id, tipo_canal, cliente_externo_id, cliente_nombre, cliente_celular, estado, archivada")
     .eq("id", id);
   if (!esSuper) q = q.eq("tienda_id", tiendaAdmin!);
   const { data: conv } = await q.maybeSingle();
@@ -111,21 +119,35 @@ export async function PanelConversacion({
               </button>
             </form>
 
-            {estado !== "cerrada" ? (
-              <form action={cerrarConversacion}>
-                <input type="hidden" name="conversacion_id" value={conv.id} />
-                <button className="text-[11px] font-semibold text-cacao underline-offset-2 hover:underline">
-                  Cerrar chat
-                </button>
-              </form>
-            ) : (
-              <form action={devolverAlAgente}>
-                <input type="hidden" name="conversacion_id" value={conv.id} />
-                <button className="text-[11px] font-semibold text-durazno underline-offset-2 hover:underline">
-                  Reabrir
-                </button>
-              </form>
-            )}
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px] text-cacao">
+              {estado !== "cerrada" ? (
+                <form action={cerrarConversacion}>
+                  <input type="hidden" name="conversacion_id" value={conv.id} />
+                  <button className="font-semibold underline-offset-2 hover:underline">Cerrar chat</button>
+                </form>
+              ) : (
+                <form action={devolverAlAgente}>
+                  <input type="hidden" name="conversacion_id" value={conv.id} />
+                  <button className="font-semibold text-durazno underline-offset-2 hover:underline">Reabrir</button>
+                </form>
+              )}
+
+              {conv.archivada ? (
+                <form action={desarchivarConversacion}>
+                  <input type="hidden" name="conversacion_id" value={conv.id} />
+                  <input type="hidden" name="volver" value={volverHref} />
+                  <button className="font-semibold text-durazno underline-offset-2 hover:underline">Desarchivar</button>
+                </form>
+              ) : (
+                <form action={archivarConversacion}>
+                  <input type="hidden" name="conversacion_id" value={conv.id} />
+                  <input type="hidden" name="volver" value={volverHref} />
+                  <button className="font-semibold underline-offset-2 hover:underline">🗄 Archivar</button>
+                </form>
+              )}
+
+              <BotonEliminar action={eliminarConversacion} id={conv.id} volver={volverHref} />
+            </div>
           </div>
         </div>
       </header>

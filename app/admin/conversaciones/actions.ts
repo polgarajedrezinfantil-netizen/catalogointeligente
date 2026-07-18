@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -100,6 +101,60 @@ export async function cerrarConversacion(formData: FormData) {
   if (error) throw new Error(error.message);
   await nota(supabase, tienda, id, "sistema", `${perfil.nombre} cerró la conversación.`);
   refresca(id);
+}
+
+// Evita open-redirects: solo dentro de la bandeja.
+function destinoSeguro(volver: FormDataEntryValue | null): string {
+  const v = typeof volver === "string" ? volver : "";
+  return v.startsWith("/admin/conversaciones") ? v : "/admin/conversaciones";
+}
+
+/** Archiva: la oculta de la bandeja (reversible). */
+export async function archivarConversacion(formData: FormData) {
+  const { perfil, supabase, esSuper } = await ctx();
+  const id = String(formData.get("conversacion_id"));
+  const destino = destinoSeguro(formData.get("volver"));
+  const tienda = await tiendaDeConv(supabase, id, esSuper ? null : perfil.tienda_id);
+  const { error } = await supabase
+    .from("agente_conversaciones")
+    .update({ archivada: true })
+    .eq("id", id)
+    .eq("tienda_id", tienda);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/conversaciones");
+  redirect(destino);
+}
+
+/** Desarchiva: la regresa a la bandeja activa. */
+export async function desarchivarConversacion(formData: FormData) {
+  const { perfil, supabase, esSuper } = await ctx();
+  const id = String(formData.get("conversacion_id"));
+  const destino = destinoSeguro(formData.get("volver"));
+  const tienda = await tiendaDeConv(supabase, id, esSuper ? null : perfil.tienda_id);
+  const { error } = await supabase
+    .from("agente_conversaciones")
+    .update({ archivada: false })
+    .eq("id", id)
+    .eq("tienda_id", tienda);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/conversaciones");
+  redirect(destino);
+}
+
+/** Borra la conversación y sus mensajes (FK on delete cascade). Definitivo. */
+export async function eliminarConversacion(formData: FormData) {
+  const { perfil, supabase, esSuper } = await ctx();
+  const id = String(formData.get("conversacion_id"));
+  const destino = destinoSeguro(formData.get("volver"));
+  const tienda = await tiendaDeConv(supabase, id, esSuper ? null : perfil.tienda_id);
+  const { error } = await supabase
+    .from("agente_conversaciones")
+    .delete()
+    .eq("id", id)
+    .eq("tienda_id", tienda);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/conversaciones");
+  redirect(destino);
 }
 
 /**
