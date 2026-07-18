@@ -1,98 +1,16 @@
-import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { SelectorTiendaNav } from "../SelectorTiendaNav";
-import { CanalIcono, CANAL_NOMBRE } from "./canal";
 import { AutoRefrescar } from "./AutoRefrescar";
+import { ListaChats, type ConvLista } from "./ListaChats";
+import { PanelConversacion } from "./PanelConversacion";
 
 export const dynamic = "force-dynamic";
-
-type Conv = {
-  id: string;
-  tipo_canal: string | null;
-  cliente_externo_id: string;
-  cliente_nombre: string | null;
-  estado: "abierta" | "en_humano" | "cerrada";
-  ultimo_mensaje_en: string;
-};
-
-const ESTADO: Record<Conv["estado"], { txt: string; cls: string }> = {
-  abierta: { txt: "🤖 Agente", cls: "bg-verde-mielina/15 text-emerald-800" },
-  en_humano: { txt: "🙋 Necesita humano", cls: "bg-durazno/15 text-durazno" },
-  cerrada: { txt: "Cerrada", cls: "bg-cacao/20 text-cacao" },
-};
-
-function fecha(iso: string) {
-  return new Date(iso).toLocaleString("es-MX", {
-    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-  });
-}
-
-// Tiempo relativo para escanear recencia de un vistazo ("hace 5 min", "ayer").
-// La fecha absoluta queda en el title del elemento.
-function hace(iso: string) {
-  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 45) return "ahora";
-  const rtf = new Intl.RelativeTimeFormat("es-MX", { numeric: "auto" });
-  const min = Math.round(s / 60);
-  if (min < 60) return rtf.format(-min, "minute");
-  const h = Math.round(min / 60);
-  if (h < 24) return rtf.format(-h, "hour");
-  const d = Math.round(h / 24);
-  if (d < 30) return rtf.format(-d, "day");
-  const mes = Math.round(d / 30);
-  if (mes < 12) return rtf.format(-mes, "month");
-  return rtf.format(-Math.round(mes / 12), "year");
-}
-
-/** Tarjeta de una conversación en la bandeja. `urgente` la resalta (handoff). */
-function Tarjeta({
-  c,
-  preview,
-  urgente = false,
-}: {
-  c: Conv;
-  preview?: string;
-  urgente?: boolean;
-}) {
-  const est = ESTADO[c.estado];
-  return (
-    <Link
-      href={`/admin/conversaciones/${c.id}`}
-      className={`flex items-center gap-3 rounded-[var(--radius-marca)] border bg-white p-3 transition hover:bg-miel/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-durazno/50 focus-visible:ring-offset-2 ${
-        urgente ? "border-l-4 border-durazno/60" : "border-miel-borde"
-      }`}
-    >
-      <CanalIcono canal={c.tipo_canal} />
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-semibold text-texto">
-            {c.cliente_nombre || c.cliente_externo_id}
-          </span>
-          <span className="hidden shrink-0 text-[11px] text-cacao sm:inline">
-            {CANAL_NOMBRE[c.tipo_canal ?? ""] ?? c.tipo_canal}
-          </span>
-        </div>
-        <p className="mt-0.5 line-clamp-1 text-sm text-cacao">{preview ?? "—"}</p>
-      </div>
-
-      <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-        <span className="text-[11px] text-cacao" title={fecha(c.ultimo_mensaje_en)}>
-          {hace(c.ultimo_mensaje_en)}
-        </span>
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${urgente ? "bg-durazno text-white" : est.cls}`}>
-          {urgente ? "🙋 Te toca" : est.txt}
-        </span>
-      </div>
-    </Link>
-  );
-}
 
 export default async function ConversacionesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tienda?: string }>;
+  searchParams: Promise<{ tienda?: string; c?: string }>;
 }) {
   const perfil = await getPerfil();
   const esSuper = perfil?.rol === "superadmin";
@@ -100,13 +18,24 @@ export default async function ConversacionesPage({
     return <p className="text-cacao">Esta sección es para administradores de una tienda.</p>;
   }
   const sp = await searchParams;
+  const c = typeof sp.c === "string" && sp.c ? sp.c : null;
   const supabase = await createClient();
 
   // El superadmin elige qué tienda monitorear; el admin ve la suya.
-  const t = esSuper ? (sp.tienda ?? "") : perfil.tienda_id!;
+  let t = esSuper ? (sp.tienda ?? "") : perfil.tienda_id!;
   const tiendas = esSuper
     ? ((await supabase.from("tiendas").select("id, nombre, slug").order("nombre")).data ?? [])
     : [];
+
+  // Enlace directo del super a un chat sin ?tienda: deriva la tienda del chat.
+  if (esSuper && !t && c) {
+    const { data } = await supabase
+      .from("agente_conversaciones")
+      .select("tienda_id")
+      .eq("id", c)
+      .maybeSingle();
+    if (data?.tienda_id) t = data.tienda_id as string;
+  }
 
   if (esSuper && !t) {
     return (
@@ -124,97 +53,73 @@ export default async function ConversacionesPage({
     .eq("tienda_id", t)
     .order("ultimo_mensaje_en", { ascending: false })
     .limit(100);
-  const convs = (convData ?? []) as Conv[];
+  const convs = (convData ?? []) as ConvLista[];
 
   // Vista previa: último mensaje por conversación (una sola consulta).
-  const preview = new Map<string, string>();
+  const previews: Record<string, string> = {};
   if (convs.length) {
     const { data: msgs } = await supabase
       .from("agente_mensajes")
       .select("conversacion_id, contenido, rol, creado")
-      .in("conversacion_id", convs.map((c) => c.id))
+      .in("conversacion_id", convs.map((cv) => cv.id))
       .order("creado", { ascending: false })
       .limit(600);
     for (const m of msgs ?? []) {
       if (!m.contenido) continue;
-      if (!preview.has(m.conversacion_id as string)) {
+      const cid = m.conversacion_id as string;
+      if (!(cid in previews)) {
         const pre = m.rol === "cliente" ? "" : m.rol === "humano" ? "👤 " : m.rol === "sistema" ? "• " : "🤖 ";
-        preview.set(m.conversacion_id as string, pre + (m.contenido as string));
+        previews[cid] = pre + (m.contenido as string);
       }
     }
   }
 
-  // Sección dedicada: las que necesitan atención humana van arriba, separadas
-  // del resto; así la dueña ve primero lo que "le toca" responder.
-  const pendientes = convs.filter((c) => c.estado === "en_humano");
-  const resto = convs.filter((c) => c.estado !== "en_humano");
+  const tiendaParam = esSuper ? t : null;
+  const listaHref = tiendaParam
+    ? `/admin/conversaciones?tienda=${tiendaParam}`
+    : "/admin/conversaciones";
+  const alturaPane = "h-[calc(100dvh-11rem)] md:h-[calc(100vh-9.5rem)]";
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="flex flex-col gap-3">
       {/* Refresca la bandeja en vivo (nuevas escaladas aparecen solas). */}
       <AutoRefrescar segundos={10} />
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2.5">
-          <h1 className="font-titulo text-2xl text-durazno">Conversaciones</h1>
-          <span className="inline-flex items-center gap-1 rounded-full bg-verde-mielina/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
-            <span className="h-1.5 w-1.5 rounded-full bg-verde-mielina" />
-            En vivo
-          </span>
-        </div>
-        <p className="text-sm text-cacao">
-          Todos los chats del agente con clientes. Las que necesitan que <strong>tú</strong>{" "}
-          respondas aparecen arriba: ábrelas y toca <strong>Tomar control</strong>.
-        </p>
-        {esSuper && <SelectorTiendaNav tiendas={tiendas} actual={t} base="/admin/conversaciones" />}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <h1 className="font-titulo text-2xl text-durazno">Conversaciones</h1>
+        <span className="inline-flex items-center gap-1 rounded-full bg-verde-mielina/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+          <span className="h-1.5 w-1.5 rounded-full bg-verde-mielina" />
+          En vivo
+        </span>
+        {esSuper && (
+          <div className="ml-auto">
+            <SelectorTiendaNav tiendas={tiendas} actual={t} base="/admin/conversaciones" />
+          </div>
+        )}
       </div>
 
-      {convs.length === 0 && (
-        <p className="rounded-xl bg-miel/40 p-4 text-sm text-cacao">
-          Aún no hay conversaciones. Cuando un cliente escriba al agente, aparecerán aquí.
-        </p>
-      )}
+      <div className="grid gap-4 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+        {/* Izquierda: lista de chats (en móvil se oculta al abrir un chat) */}
+        <div className={`${alturaPane} min-h-0 ${c ? "hidden md:block" : "block"}`}>
+          <ListaChats convs={convs} previews={previews} selected={c} tienda={tiendaParam} />
+        </div>
 
-      {/* === Sección: necesitan atención humana === */}
-      {pendientes.length > 0 && (
-        <section className="space-y-2 rounded-[var(--radius-marca)] border border-durazno/40 bg-durazno/[0.06] p-3">
-          <div className="flex items-center gap-2 px-1">
-            <span className="grid h-6 w-6 place-items-center rounded-full bg-durazno text-xs font-bold text-white">
-              {pendientes.length}
-            </span>
-            <h2 className="font-titulo text-base text-durazno">
-              {pendientes.length === 1 ? "Necesita atención humana" : "Necesitan atención humana"}
-            </h2>
-            <span className="ml-auto text-[11px] text-cacao">Te toca responder</span>
-          </div>
-          <div className="space-y-2">
-            {pendientes.map((c) => (
-              <Tarjeta key={c.id} c={c} preview={preview.get(c.id)} urgente />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Estado positivo: hay chats pero ninguno espera a un humano. */}
-      {convs.length > 0 && pendientes.length === 0 && (
-        <p className="rounded-[var(--radius-marca)] border border-verde-mielina/30 bg-verde-mielina/10 p-3 text-sm font-semibold text-emerald-800">
-          ✅ Sin pendientes — el agente está atendiendo todo.
-        </p>
-      )}
-
-      {/* === Sección: el resto (agente / cerradas) === */}
-      {resto.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="px-1 font-titulo text-base text-cacao">
-            {pendientes.length > 0 ? "Todas las demás" : "Todas las conversaciones"}
-          </h2>
-          <div className="space-y-2">
-            {resto.map((c) => (
-              <Tarjeta key={c.id} c={c} preview={preview.get(c.id)} />
-            ))}
-          </div>
-        </section>
-      )}
+        {/* Derecha: la conversación (o el marcador de posición) */}
+        <div className={`${alturaPane} min-h-0 ${c ? "block" : "hidden md:block"}`}>
+          {c ? (
+            <PanelConversacion
+              id={c}
+              esSuper={esSuper}
+              tiendaAdmin={perfil.tienda_id ?? null}
+              volverHref={listaHref}
+            />
+          ) : (
+            <div className="grid h-full place-items-center rounded-[var(--radius-marca)] border border-dashed border-miel-borde bg-white/60 p-6 text-center text-sm text-cacao">
+              Selecciona una conversación para verla aquí.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

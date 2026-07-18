@@ -87,8 +87,8 @@ export function Hilo({
   }
 
   return (
-    <div className="flex flex-col">
-      <div className="max-h-[55vh] space-y-2 overflow-y-auto rounded-[var(--radius-marca)] border border-miel-borde bg-crema/40 p-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-[var(--radius-marca)] border border-miel-borde bg-crema/40 p-4">
         {mensajes.length === 0 && (
           <p className="text-center text-sm text-cacao">Sin mensajes todavía.</p>
         )}
@@ -123,8 +123,8 @@ export function Hilo({
         <div ref={finRef} />
       </div>
 
-      {/* Caja de respuesta pegada abajo (en móvil, responder sin hacer scroll). */}
-      <div className="sticky bottom-0 z-10 mt-3 bg-crema/95 pb-1 pt-2 backdrop-blur supports-[backdrop-filter]:bg-crema/80">
+      {/* Caja de respuesta (queda abajo del hilo, en la base del panel). */}
+      <div className="mt-3 shrink-0">
         {estado === "en_humano" ? (
           <div className="flex gap-2">
             <textarea
