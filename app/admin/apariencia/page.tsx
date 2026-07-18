@@ -48,6 +48,8 @@ export default async function AparienciaPage() {
         ogTitulo={tienda.og_titulo ?? ""}
         ogDescripcion={tienda.og_descripcion ?? ""}
         banner={tienda.banner_url ?? ""}
+        landingActiva={tienda.landing_activa}
+        slug={tienda.slug}
       />
     </div>
   );

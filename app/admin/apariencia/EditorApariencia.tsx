@@ -22,6 +22,8 @@ type Props = {
   ogTitulo: string;
   ogDescripcion: string;
   banner: string;
+  landingActiva: boolean;
+  slug: string;
 };
 
 export function EditorApariencia(props: Props) {
@@ -35,6 +37,7 @@ export function EditorApariencia(props: Props) {
   const [ogTitulo, setOgTitulo] = useState(props.ogTitulo);
   const [ogDescripcion, setOgDescripcion] = useState(props.ogDescripcion);
   const [banner, setBanner] = useState(props.banner);
+  const [landingActiva, setLandingActiva] = useState(props.landingActiva);
 
   const setColor = (key: string, val: string) =>
     setTema((t) => ({ ...t, [key]: val }));
@@ -149,6 +152,39 @@ export function EditorApariencia(props: Props) {
               />
             </label>
           </div>
+        </section>
+
+        {/* Landing de bienvenida */}
+        <section className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-5">
+          <h2 className="mb-1 font-titulo text-lg text-coral">
+            Página de bienvenida
+          </h2>
+          <p className="mb-4 text-sm text-cacao">
+            Muestra una portada (logo, frase y productos destacados) antes del
+            catálogo. Si la apagas, tu link entra directo al catálogo.
+          </p>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              name="landing_activa"
+              checked={landingActiva}
+              onChange={(e) => setLandingActiva(e.target.checked)}
+              className="h-5 w-5 shrink-0 accent-verde-mielina"
+            />
+            <span className="text-sm font-semibold text-texto">
+              Mostrar página de bienvenida antes del catálogo
+            </span>
+          </label>
+          {landingActiva && (
+            <a
+              href={`https://${props.slug}.myelplay.com`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-block text-sm font-bold text-verde-mielina hover:underline"
+            >
+              Ver mi página de bienvenida →
+            </a>
+          )}
         </section>
 
         {/* Campo oculto con el tema + guardar */}

@@ -10,6 +10,7 @@ export type TiendaDeHost = {
   nombre: string; // nombre corto (antes de " - ")
   logo_url: string | null;
   tema: Tema | null;
+  landing_activa: boolean; // muestra landing en la raíz antes del catálogo
 };
 
 /**
@@ -27,7 +28,7 @@ export async function tiendaPorHost(): Promise<TiendaDeHost | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("tiendas")
-    .select("slug, nombre, logo_url, tema")
+    .select("slug, nombre, logo_url, tema, landing_activa")
     .eq("slug", slug)
     .eq("activa", true)
     .maybeSingle();
@@ -38,5 +39,6 @@ export async function tiendaPorHost(): Promise<TiendaDeHost | null> {
     nombre: String(data.nombre).split(" - ")[0],
     logo_url: (data.logo_url as string | null) ?? null,
     tema: (data.tema as Tema | null) ?? null,
+    landing_activa: Boolean(data.landing_activa),
   };
 }

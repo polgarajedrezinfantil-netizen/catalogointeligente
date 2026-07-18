@@ -58,6 +58,8 @@ export type Tienda = {
   mp_init_point: string | null;
   precio_mensual: number;
   apagada_por_impago: boolean;
+  // Landing de bienvenida antes del catálogo (0029); false = va directo al catálogo.
+  landing_activa: boolean;
 };
 
 // Guía de tallas: tabla de referencia (encabezados + filas de celdas).

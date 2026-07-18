@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { tiendaPorHost } from "@/lib/marca-host";
+import { LandingTienda } from "./LandingTienda";
 
 // Portada por host:
-// - <tienda>.myelplay.com  → directo al catálogo de esa tienda.
+// - <tienda>.myelplay.com  → landing de bienvenida (si landing_activa) o
+//   directo al catálogo de esa tienda.
 // - agentes.* / localhost / dominios técnicos → landing del PRODUCTO
 //   (MyelPlay Agentes), neutra y sin marca de ningún cliente.
 export default async function Home() {
   const tienda = await tiendaPorHost();
-  if (tienda) redirect(`/${tienda.slug}`);
+  if (tienda) {
+    if (!tienda.landing_activa) redirect(`/${tienda.slug}`);
+    return <LandingTienda slug={tienda.slug} />;
+  }
 
   return <LandingProducto />;
 }

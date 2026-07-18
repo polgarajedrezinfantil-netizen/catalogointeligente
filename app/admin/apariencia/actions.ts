@@ -48,6 +48,7 @@ export async function guardarApariencia(
       og_titulo: textoONull(formData.get("og_titulo")),
       og_descripcion: textoONull(formData.get("og_descripcion")),
       banner_url: String(formData.get("banner") ?? "").trim() || null,
+      landing_activa: formData.get("landing_activa") === "on",
       actualizado: new Date().toISOString(),
     })
     .eq("id", tienda_id);
