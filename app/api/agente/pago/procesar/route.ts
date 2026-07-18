@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { accessTokenDe, comisionPct } from "@/lib/agente/mp-oauth";
 import { baseUrl } from "@/lib/agente/urls";
+import { enviarReciboPago } from "@/lib/agente/recibo";
 
 // Procesa el pago del Payment Brick embebido (página de pago con marca).
 // El Brick tokeniza la tarjeta del lado cliente; aquí creamos el pago REAL con
@@ -99,6 +100,12 @@ export async function POST(req: Request) {
   // Pago aprobado → cerramos el pedido (idempotente). Respaldo: el webhook.
   if (mp.status === "approved") {
     await supabase.rpc("pagar_pedido_agente", { p_pedido: pedidoId });
+    // Recibo por correo con la descripción del producto (best-effort).
+    try {
+      await enviarReciboPago(pedidoId, fd.payer?.email);
+    } catch (e) {
+      console.error("[pago/procesar] recibo:", e);
+    }
   }
 
   return NextResponse.json({

@@ -12,6 +12,7 @@ import { BannerNovedades } from "./BannerNovedades";
 import { HeroBoutique } from "./HeroBoutique";
 import { ColeccionesBoutique, type Coleccion } from "./ColeccionesBoutique";
 import { plantillaDe, clasePlantilla, tituloColeccion } from "@/lib/plantilla";
+import { publicKeyDe } from "@/lib/agente/mp-oauth";
 import type { ComponentType } from "react";
 import { IconoMaps, IconoWhatsApp, IconoInstagram, IconoFacebook, IconoTikTok } from "@/components/IconosMarca";
 
@@ -93,6 +94,9 @@ export default async function CatalogoPublico({
 
   const lineasT = (lineas ?? []) as Linea[];
   const productosT = (productos ?? []) as Producto[];
+
+  // ¿La tienda conectó Mercado Pago? → ofrece "Pagar en línea" en el carrito.
+  const pagoEnLinea = !!(await publicKeyDe(tienda.id));
 
   const waUrl = tienda.whatsapp ? `https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}` : null;
   const marca = tienda.nombre.split(" - ")[0];
@@ -224,7 +228,7 @@ export default async function CatalogoPublico({
       <div className="flex-1 px-2 pb-24 pt-3">
         {esBoutique && <ColeccionesBoutique colecciones={colecciones} />}
         <CatalogoCliente
-          tienda={{ id: tienda.id, marca, simbolo: tienda.etiqueta_precio, whatsapp: tienda.whatsapp, datosPago: tienda.datos_pago }}
+          tienda={{ id: tienda.id, marca, simbolo: tienda.etiqueta_precio, whatsapp: tienda.whatsapp, datosPago: tienda.datos_pago, slug: tienda.slug, pagoEnLinea }}
           nidos={(nidos ?? []) as Nido[]}
           lineas={lineasT}
           campos={(campos ?? []) as Campo[]}

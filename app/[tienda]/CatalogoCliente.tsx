@@ -22,6 +22,8 @@ type TiendaMin = {
   simbolo: string;
   whatsapp: string | null;
   datosPago: string | null;
+  slug: string;
+  pagoEnLinea: boolean; // la tienda conectó Mercado Pago (cobro en línea)
 };
 
 // Texto de existencias para mostrar al cliente.
@@ -615,7 +617,7 @@ function Carrito({
   // Generar pedido: registra el pedido en el sistema y abre WhatsApp con el
   // resumen para que la tienda coordine el pago. Las prendas quedan "En firme".
   const [generando, setGenerando] = useState(false);
-  const [pedido, setPedido] = useState<{ folio: number } | null>(null);
+  const [pedido, setPedido] = useState<{ folio: number; id: string } | null>(null);
   const [errorPedido, setErrorPedido] = useState<string | null>(null);
 
   function mensajePedido(folio: number) {
@@ -654,13 +656,15 @@ function Carrito({
       p_cupon: cupon?.palabra ?? null,
     });
     setGenerando(false);
-    const d = data as { ok?: boolean; folio?: number } | null;
+    const d = data as { ok?: boolean; folio?: number; pedido_id?: string } | null;
     if (error || !d?.ok) {
       setErrorPedido("No se pudo generar el pedido. Intenta de nuevo.");
       return;
     }
-    setPedido({ folio: d.folio! });
-    abrirWhatsApp(d.folio!);
+    setPedido({ folio: d.folio!, id: d.pedido_id! });
+    // Con pago en línea dejamos que el cliente elija (pagar o WhatsApp); sin él,
+    // abrimos WhatsApp como antes para coordinar el pago.
+    if (!tienda.pagoEnLinea) abrirWhatsApp(d.folio!);
   }
 
   return (
@@ -785,22 +789,46 @@ function Carrito({
             </p>
 
             {pedido ? (
-              // Pedido recién generado: confirmación + reabrir WhatsApp.
+              // Pedido recién generado: pagar en línea (si hay MP) o por WhatsApp.
               <div className="space-y-2 rounded-xl bg-verde-mielina/15 p-3 text-center">
                 <p className="font-producto font-bold text-[#3f5a1c]">
                   ✅ ¡Pedido #{pedido.folio} generado!
                 </p>
-                <p className="text-xs text-cacao">
-                  La tienda ya tiene tu pedido. Coordina el pago por WhatsApp y te
-                  confirmamos en cuanto lo recibamos. 🍯
-                </p>
-                {tienda.whatsapp && (
-                  <button
-                    onClick={() => abrirWhatsApp(pedido.folio)}
-                    className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
-                  >
-                    Abrir WhatsApp de nuevo
-                  </button>
+                {tienda.pagoEnLinea ? (
+                  <>
+                    <p className="text-xs text-cacao">
+                      Paga en línea de forma segura y coordinamos tu recolección. 🍯
+                    </p>
+                    <a
+                      href={`/${tienda.slug}/pagar/${pedido.id}`}
+                      className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
+                    >
+                      Pagar ahora 💳
+                    </a>
+                    {tienda.whatsapp && (
+                      <button
+                        onClick={() => abrirWhatsApp(pedido.folio)}
+                        className="block w-full rounded-full border border-verde-mielina py-2.5 text-center text-sm font-bold text-[#3f5a1c]"
+                      >
+                        Prefiero coordinar por WhatsApp
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-cacao">
+                      La tienda ya tiene tu pedido. Coordina el pago por WhatsApp y te
+                      confirmamos en cuanto lo recibamos. 🍯
+                    </p>
+                    {tienda.whatsapp && (
+                      <button
+                        onClick={() => abrirWhatsApp(pedido.folio)}
+                        className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
+                      >
+                        Abrir WhatsApp de nuevo
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             ) : nuevos.length === 0 && enProceso.length > 0 ? (
@@ -810,8 +838,18 @@ function Carrito({
                   🧾 Tu pedido ya está en proceso
                 </p>
                 <p className="text-xs text-cacao">
-                  La tienda coordinará el pago contigo por WhatsApp y te confirma al recibirlo. 🍯
+                  {tienda.pagoEnLinea
+                    ? "Puedes pagarlo en línea o coordinarlo por WhatsApp. 🍯"
+                    : "La tienda coordinará el pago contigo por WhatsApp y te confirma al recibirlo. 🍯"}
                 </p>
+                {tienda.pagoEnLinea && enProceso[0]?.pedido_id && (
+                  <a
+                    href={`/${tienda.slug}/pagar/${enProceso[0].pedido_id}`}
+                    className="block w-full rounded-full bg-verde-mielina py-3 text-center font-producto font-bold text-white"
+                  >
+                    Pagar ahora 💳
+                  </a>
+                )}
                 {tienda.whatsapp && (
                   <a
                     href={`https://wa.me/${tienda.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
@@ -835,7 +873,9 @@ function Carrito({
                   {generando ? "Generando…" : "Generar pedido 🧾"}
                 </button>
                 <p className="text-center text-xs text-cacao">
-                  Se crea tu pedido y se abre WhatsApp para coordinar el pago.
+                  {tienda.pagoEnLinea
+                    ? "Se crea tu pedido y podrás pagar en línea o por WhatsApp."
+                    : "Se crea tu pedido y se abre WhatsApp para coordinar el pago."}
                 </p>
                 {errorPedido && (
                   <p className="text-center text-xs text-durazno">{errorPedido}</p>

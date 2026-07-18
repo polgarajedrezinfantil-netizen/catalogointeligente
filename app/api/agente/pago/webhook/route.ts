@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { tokenCobro } from "@/lib/agente/mp-oauth";
+import { enviarReciboPago } from "@/lib/agente/recibo";
 
 // Webhook de Mercado Pago para el cobro del agente.
 //   - Valida la firma (x-signature) con MP_WEBHOOK_SECRET.
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
   }
 
   // Consulta el pago real en Mercado Pago.
-  let pago: { status?: string; external_reference?: string };
+  let pago: { status?: string; external_reference?: string; payer?: { email?: string } };
   try {
     const resp = await fetch(
       `https://api.mercadopago.com/v1/payments/${dataId}`,
@@ -114,6 +115,16 @@ export async function POST(req: Request) {
   });
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Recibo por correo solo en la PRIMERA vez que se marca pagado (evita duplicar
+  // con el que ya manda /procesar en el pago inmediato). Best-effort.
+  if (data && (data as { ya_pagado?: boolean }).ya_pagado === false) {
+    try {
+      await enviarReciboPago(pedidoId, pago.payer?.email);
+    } catch (e) {
+      console.error("[pago/webhook] recibo:", e);
+    }
   }
 
   return NextResponse.json({ ok: true, resultado: data });
