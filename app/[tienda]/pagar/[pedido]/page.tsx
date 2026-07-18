@@ -109,16 +109,44 @@ export default async function PagarPage({
               Escríbenos por WhatsApp si quieres retomarlo.
             </p>
           </section>
-        ) : publicKey ? (
-          <section className="rounded-2xl border border-miel-borde bg-white p-4">
-            <h2 className="mb-3 font-titulo text-lg text-coral">Paga con tarjeta</h2>
-            <BrickPago publicKey={publicKey} amount={total} pedidoId={p.id as string} />
-          </section>
         ) : (
-          <section className="rounded-2xl border border-miel-borde bg-white p-6 text-center text-sm text-cacao">
-            El pago en línea aún no está disponible para esta tienda. Escríbenos por WhatsApp
-            para completar tu compra.
-          </section>
+          <>
+            {/* Recordatorio: primero la recolección, luego el pago */}
+            <section className="rounded-2xl border border-miel-borde bg-miel/25 p-4 text-sm text-[#7a5414]">
+              📅 <strong>Antes de pagar</strong>, coordina tu <strong>día y hora de
+              recolección</strong> en el local por WhatsApp.
+            </section>
+
+            {/* Pago con tarjeta (Payment Brick) */}
+            {publicKey && (
+              <section className="rounded-2xl border border-miel-borde bg-white p-4">
+                <h2 className="mb-3 font-titulo text-lg text-coral">Paga con tarjeta</h2>
+                <BrickPago publicKey={publicKey} amount={total} pedidoId={p.id as string} />
+              </section>
+            )}
+
+            {/* Pago por transferencia (datos de la tienda) */}
+            {tienda.datos_pago && (
+              <section className="rounded-2xl border border-miel-borde bg-white p-4">
+                <h2 className="mb-2 font-titulo text-lg text-coral">
+                  {publicKey ? "O paga por transferencia" : "Paga por transferencia"}
+                </h2>
+                <pre className="whitespace-pre-wrap break-words rounded-xl bg-crema p-3 font-mano text-sm text-texto">
+                  {tienda.datos_pago}
+                </pre>
+                <p className="mt-2 text-xs text-cacao">
+                  Al terminar, envía tu comprobante por WhatsApp para confirmar tu pedido.
+                </p>
+              </section>
+            )}
+
+            {!publicKey && !tienda.datos_pago && (
+              <section className="rounded-2xl border border-miel-borde bg-white p-6 text-center text-sm text-cacao">
+                El pago en línea aún no está disponible para esta tienda. Escríbenos por
+                WhatsApp para completar tu compra.
+              </section>
+            )}
+          </>
         )}
 
         <p className="pt-1 text-center text-xs text-cacao">

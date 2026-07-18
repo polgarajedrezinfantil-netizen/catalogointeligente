@@ -4,7 +4,7 @@ import {
   mensajeExisteExterno,
 } from "@/lib/agente/persistencia";
 import { responder } from "@/lib/agente/responder";
-import { enviarMeta } from "@/lib/agente/meta";
+import { enviarMeta, descargarImagenUrl } from "@/lib/agente/meta";
 
 // Webhook de Meta para Messenger e Instagram (un solo endpoint).
 //   GET  -> verificación del webhook (hub.challenge).
@@ -46,7 +46,12 @@ function firmaValida(req: Request, rawBody: string): boolean {
 type MetaMessaging = {
   sender?: { id?: string };
   recipient?: { id?: string };
-  message?: { mid?: string; text?: string; is_echo?: boolean };
+  message?: {
+    mid?: string;
+    text?: string;
+    is_echo?: boolean;
+    attachments?: { type?: string; payload?: { url?: string } }[];
+  };
 };
 
 // --- POST: mensajes entrantes (Messenger / Instagram) ---
@@ -90,16 +95,24 @@ export async function POST(req: Request) {
           continue;
         }
 
+        // Imagen adjunta (visión). Messenger/IG la mandan como URL pública.
+        let imagen: { base64: string; mime: string } | undefined;
+        const imgUrl = msg.attachments?.find((a) => a.type === "image")?.payload?.url;
+        if (imgUrl) imagen = (await descargarImagenUrl(imgUrl)) ?? undefined;
+
         const cuerpo =
           texto && texto.length
             ? texto
-            : `[El cliente envió un adjunto. Por ahora solo puedo leer texto.]`;
+            : imagen
+              ? "[El cliente envió una imagen]"
+              : `[El cliente envió un adjunto. Por ahora solo puedo leer texto e imágenes.]`;
 
         const r = await responder({
           tiendaSlug: tienda.slug,
           canal,
           clienteExternoId: clienteId,
           texto: cuerpo,
+          imagen,
           externalId: msg.mid,
         });
 

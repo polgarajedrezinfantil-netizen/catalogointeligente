@@ -6,6 +6,30 @@
 
 const VERSION = process.env.META_GRAPH_API_VERSION || "v20.0";
 
+const MIMES_IMG = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+/**
+ * Descarga una imagen adjunta de Messenger/Instagram (viene como URL pública
+ * firmada) y la devuelve en base64, para pasársela a Claude como visión.
+ * Devuelve null si falla, no es imagen, o pesa demasiado.
+ */
+export async function descargarImagenUrl(
+  url: string,
+): Promise<{ base64: string; mime: string } | null> {
+  if (!url) return null;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const mime = (r.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
+    if (!MIMES_IMG.includes(mime)) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 5 * 1024 * 1024) return null; // ~5 MB
+    return { base64: buf.toString("base64"), mime };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Envía un mensaje de texto por Messenger o Instagram.
  * @param emisorId  id de la página (Messenger) o de la cuenta IG (Instagram)
