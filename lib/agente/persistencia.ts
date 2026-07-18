@@ -134,6 +134,7 @@ export async function guardarMensaje(params: {
   contenido: string;
   externalId?: string; // id del mensaje en Meta (dedupe de entrantes)
   meta?: Record<string, unknown>;
+  adjuntos?: unknown[]; // urls de media: [{ tipo, url, mime }]
 }): Promise<void> {
   const supabase = createServiceClient();
   await supabase.from("agente_mensajes").insert({
@@ -143,6 +144,7 @@ export async function guardarMensaje(params: {
     contenido: params.contenido,
     external_id: params.externalId ?? null,
     meta: params.meta ?? {},
+    adjuntos: params.adjuntos ?? [],
   });
   await supabase
     .from("agente_conversaciones")

@@ -3,15 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+export type Adjunto = { tipo?: string; url: string; mime?: string };
+
 export type Mensaje = {
   id: string;
   rol: "cliente" | "agente" | "humano" | "sistema";
   contenido: string | null;
   creado: string;
+  adjuntos?: Adjunto[] | null;
+  meta?: Record<string, unknown> | null;
 };
+
+// Columnas que trae el hilo (incluye media y meta para imágenes/comprobantes).
+const COLS = "id, rol, contenido, creado, adjuntos, meta";
 
 function hora(iso: string) {
   return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+}
+
+function esPlaceholderImagen(texto: string | null) {
+  return /^\[El cliente envió (una imagen|un adjunto)/.test(texto ?? "");
 }
 
 // Hilo de mensajes en vivo (sondea cada 4s) + caja de respuesta del humano.
@@ -30,6 +41,7 @@ export function Hilo({
   const [mensajes, setMensajes] = useState<Mensaje[]>(initial);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [decidiendo, setDecidiendo] = useState<string | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -45,7 +57,7 @@ export function Hilo({
       const ultimo = mensajes[mensajes.length - 1]?.creado ?? "1970-01-01";
       const { data } = await supabase
         .from("agente_mensajes")
-        .select("id, rol, contenido, creado")
+        .select(COLS)
         .eq("conversacion_id", conversacionId)
         .gt("creado", ultimo)
         .order("creado", { ascending: true });
@@ -63,6 +75,14 @@ export function Hilo({
     };
   }, [conversacionId, mensajes, supabase]);
 
+  async function tocaUltimoMensaje() {
+    await supabase
+      .from("agente_conversaciones")
+      .update({ ultimo_mensaje_en: new Date().toISOString() })
+      .eq("id", conversacionId)
+      .eq("tienda_id", tiendaId);
+  }
+
   async function enviar() {
     const limpio = texto.trim();
     if (!limpio || enviando) return;
@@ -70,20 +90,44 @@ export function Hilo({
     const { data, error } = await supabase
       .from("agente_mensajes")
       .insert({ conversacion_id: conversacionId, tienda_id: tiendaId, rol: "humano", contenido: limpio })
-      .select("id, rol, contenido, creado")
+      .select(COLS)
       .single();
     if (!error && data) {
       setMensajes((prev) => [...prev, data as Mensaje]);
       setTexto("");
-      await supabase
-        .from("agente_conversaciones")
-        .update({ ultimo_mensaje_en: new Date().toISOString() })
-        .eq("id", conversacionId)
-        .eq("tienda_id", tiendaId);
+      await tocaUltimoMensaje();
     } else if (error) {
       alert("No se pudo enviar: " + error.message);
     }
     setEnviando(false);
+  }
+
+  // Aprobar / rechazar un comprobante de pago: marca el mensaje y deja nota.
+  async function decidirComprobante(m: Mensaje, decision: "aprobado" | "rechazado") {
+    if (decidiendo) return;
+    setDecidiendo(m.id);
+    const nuevoMeta = { ...(m.meta ?? {}), comprobante_estado: decision };
+    const { error } = await supabase.from("agente_mensajes").update({ meta: nuevoMeta }).eq("id", m.id);
+    if (error) {
+      alert("No se pudo guardar: " + error.message);
+      setDecidiendo(null);
+      return;
+    }
+    const nota =
+      decision === "aprobado"
+        ? "✅ Comprobante aprobado por el equipo."
+        : "❌ Comprobante rechazado por el equipo.";
+    const { data } = await supabase
+      .from("agente_mensajes")
+      .insert({ conversacion_id: conversacionId, tienda_id: tiendaId, rol: "sistema", contenido: nota })
+      .select(COLS)
+      .single();
+    setMensajes((prev) => {
+      const upd = prev.map((x) => (x.id === m.id ? { ...x, meta: nuevoMeta } : x));
+      return data ? [...upd, data as Mensaje] : upd;
+    });
+    await tocaUltimoMensaje();
+    setDecidiendo(null);
   }
 
   return (
@@ -106,6 +150,13 @@ export function Hilo({
             : m.rol === "humano"
               ? "bg-durazno/15 text-durazno"
               : "bg-verde-mielina/15 text-emerald-800";
+
+          const imgs = (m.adjuntos ?? []).filter(
+            (a): a is Adjunto => !!a?.url && (a.tipo === "imagen" || (a.mime ?? "").startsWith("image")),
+          );
+          const textoVisible = imgs.length && esPlaceholderImagen(m.contenido) ? "" : m.contenido ?? "";
+          const meta = (m.meta ?? {}) as { comprobante?: boolean; comprobante_estado?: string };
+
           return (
             <div key={m.id} className={`flex ${esCliente ? "justify-start" : "justify-end"}`}>
               <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${burbuja}`}>
@@ -114,7 +165,52 @@ export function Hilo({
                     {m.rol === "humano" ? "Equipo" : "Agente"}
                   </span>
                 )}
-                <span className="whitespace-pre-wrap">{m.contenido}</span>
+
+                {imgs.map((a, i) => (
+                  <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" className="mb-1 block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={a.url}
+                      alt="Imagen enviada por el cliente"
+                      loading="lazy"
+                      className="max-h-56 w-auto max-w-full rounded-lg border border-miel-borde object-contain"
+                    />
+                  </a>
+                ))}
+
+                {textoVisible && <span className="whitespace-pre-wrap">{textoVisible}</span>}
+
+                {/* Comprobante de pago: aprobar / rechazar (pequeño y discreto) */}
+                {esCliente && meta.comprobante && (
+                  meta.comprobante_estado ? (
+                    <span
+                      className={`mt-1 block text-[11px] font-bold ${
+                        meta.comprobante_estado === "aprobado" ? "text-emerald-700" : "text-coral"
+                      }`}
+                    >
+                      {meta.comprobante_estado === "aprobado" ? "✅ Comprobante aprobado" : "❌ Comprobante rechazado"}
+                    </span>
+                  ) : (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-cacao">Comprobante:</span>
+                      <button
+                        onClick={() => decidirComprobante(m, "aprobado")}
+                        disabled={decidiendo === m.id}
+                        className="rounded-full bg-verde-mielina px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={() => decidirComprobante(m, "rechazado")}
+                        disabled={decidiendo === m.id}
+                        className="rounded-full bg-coral px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  )
+                )}
+
                 <span className="mt-0.5 block text-right text-[10px] opacity-50">{hora(m.creado)}</span>
               </div>
             </div>

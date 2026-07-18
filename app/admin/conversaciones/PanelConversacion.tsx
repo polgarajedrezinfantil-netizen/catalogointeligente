@@ -48,7 +48,7 @@ export async function PanelConversacion({
 
   const { data: msgsData } = await supabase
     .from("agente_mensajes")
-    .select("id, rol, contenido, creado")
+    .select("id, rol, contenido, creado, adjuntos, meta")
     .eq("conversacion_id", id)
     .order("creado", { ascending: true })
     .limit(500);

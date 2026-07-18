@@ -4,6 +4,7 @@
 import { cargarConfigTenant } from "./tenants";
 import { construirSistema } from "./core";
 import { correrAgente } from "./claude";
+import { subirImagenAgente, esComprobantePago } from "./media";
 import {
   obtenerTiendaPorSlug,
   cargarOCrearConversacion,
@@ -55,6 +56,19 @@ export async function responder(params: {
     });
   }
 
+  // Si mandó imagen: la guardamos en Storage (para verla en la bandeja) y
+  // detectamos si es un comprobante de pago (para ofrecer Aprobar/Rechazar).
+  let adjuntos: unknown[] | undefined;
+  let metaCliente: Record<string, unknown> | undefined;
+  if (imagen) {
+    const [url, comprobante] = await Promise.all([
+      subirImagenAgente(imagen, conv.id),
+      esComprobantePago(imagen),
+    ]);
+    if (url) adjuntos = [{ tipo: "imagen", url, mime: imagen.mime }];
+    if (comprobante) metaCliente = { comprobante: true };
+  }
+
   // Siempre registramos lo que escribe el cliente (lo verá el humano en la bandeja).
   await guardarMensaje({
     conversacionId: conv.id,
@@ -62,6 +76,8 @@ export async function responder(params: {
     rol: "cliente",
     contenido: texto,
     externalId,
+    adjuntos,
+    meta: metaCliente,
   });
 
   // El agente NO responde si la tienda no está activa (alta a medio configurar),
