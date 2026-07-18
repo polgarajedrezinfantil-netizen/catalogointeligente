@@ -103,19 +103,28 @@ export async function historialMensajes(
   limite = 20,
 ): Promise<MensajeChat[]> {
   const supabase = createServiceClient();
+  // Traemos los MÁS RECIENTES (desc + limit) y los volteamos a orden cronológico.
+  // Si trajéramos los más viejos (asc + limit), en conversaciones largas se
+  // perdería el mensaje actual y el arreglo terminaría en 'assistant' → la API
+  // de Claude lo rechaza ("must end with a user message").
   const { data } = await supabase
     .from("agente_mensajes")
     .select("rol, contenido, creado")
     .eq("conversacion_id", conversacionId)
-    .order("creado", { ascending: true })
+    .order("creado", { ascending: false })
     .limit(limite);
 
-  return (data ?? [])
+  const msgs = (data ?? [])
+    .reverse()
     .filter((m) => m.contenido && (m.rol === "cliente" || m.rol === "agente" || m.rol === "humano"))
     .map((m) => ({
       role: m.rol === "cliente" ? ("user" as const) : ("assistant" as const),
       content: m.contenido as string,
     }));
+
+  // La conversación enviada a Claude debe EMPEZAR con un mensaje de usuario.
+  while (msgs.length && msgs[0].role === "assistant") msgs.shift();
+  return msgs;
 }
 
 export async function guardarMensaje(params: {
