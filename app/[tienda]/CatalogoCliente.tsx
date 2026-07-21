@@ -334,11 +334,15 @@ export function CatalogoCliente({
   // nadie los usa, así que se ocultan.
   const hayGeneros = useMemo(() => productos.some((p) => !!p.genero), [productos]);
 
-  // Campos que representan la talla (para mostrarla discreta en cada tarjeta).
-  const tallaCampoIds = useMemo(
-    () => new Set(campos.filter((c) => sinAcentos(c.nombre).includes("talla")).map((c) => c.id)),
-    [campos],
-  );
+  // Campos que representan la talla/medida (para mostrarla discreta en cada
+  // tarjeta): Talla, Número (calzado) o Edad.
+  const tallaCampoIds = useMemo(() => {
+    const esTalla = (n: string) => {
+      const s = sinAcentos(n);
+      return s.includes("talla") || s.includes("numero") || s.includes("edad");
+    };
+    return new Set(campos.filter((c) => esTalla(c.nombre)).map((c) => c.id));
+  }, [campos]);
   function tallasDe(p: Producto): string[] {
     const out: string[] = [];
     for (const [k, v] of Object.entries(p.atributos ?? {})) {
@@ -524,7 +528,7 @@ export function CatalogoCliente({
                   const ts = tallasDe(p);
                   if (!ts.length) return null;
                   return (
-                    <span className="pointer-events-none absolute bottom-1.5 right-1.5 max-w-[70%] truncate rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                    <span className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-7 min-w-7 max-w-[85%] items-center justify-center whitespace-nowrap rounded-full bg-black/30 px-2 text-[10px] font-bold text-white ring-1 ring-white/40 backdrop-blur-sm">
                       {ts.length > 3 ? `${ts.slice(0, 3).join(" · ")}…` : ts.join(" · ")}
                     </span>
                   );
