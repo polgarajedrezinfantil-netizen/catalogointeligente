@@ -17,6 +17,9 @@ const ETIQUETA: Record<EstadoProducto, { txt: string; cls: string }> = {
   agotada: { txt: "Agotada", cls: "bg-cacao/70 text-white" },
 };
 
+const sinAcentos = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
 type TiendaMin = {
   id: string;
   marca: string;
@@ -331,6 +334,21 @@ export function CatalogoCliente({
   // nadie los usa, así que se ocultan.
   const hayGeneros = useMemo(() => productos.some((p) => !!p.genero), [productos]);
 
+  // Campos que representan la talla (para mostrarla discreta en cada tarjeta).
+  const tallaCampoIds = useMemo(
+    () => new Set(campos.filter((c) => sinAcentos(c.nombre).includes("talla")).map((c) => c.id)),
+    [campos],
+  );
+  function tallasDe(p: Producto): string[] {
+    const out: string[] = [];
+    for (const [k, v] of Object.entries(p.atributos ?? {})) {
+      if (!tallaCampoIds.has(k)) continue;
+      if (Array.isArray(v)) out.push(...v.map(String));
+      else if (v != null && v !== "") out.push(String(v));
+    }
+    return out;
+  }
+
   const detalle = productos.find((p) => p.id === detalleId) ?? null;
 
   return (
@@ -376,34 +394,53 @@ export function CatalogoCliente({
           buscador SIEMPRE visible (como el mockup); en default los chips van
           solos y la búsqueda se despliega desde la barra inferior. */}
       {(() => {
+        // Dos dimensiones que se combinan: PERSONA (género) arriba y OBJETO
+        // (línea: ropa/calzado/varios) abajo. Se pueden elegir a la vez (ej.
+        // Niña + Ropa). Cada fila tiene su propio "Todo".
+        const filaCls =
+          "flex flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
         const chips = (
-          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <Chip
-              activo={lineaSel === "" && generoSel === "" && !soloFavoritos}
-              onClick={() => { setLineaSel(""); setGeneroSel(""); setSoloFavoritos(false); setFiltros({}); }}
-            >
-              Todo
-            </Chip>
+          <div className="space-y-1.5">
             {hayGeneros && (
-              <>
-                <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
-                <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
-                <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
-              </>
+              <div className="flex items-center gap-2">
+                <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-wide text-cacao/70">Quién</span>
+                <div className={filaCls}>
+                  <Chip activo={generoSel === ""} onClick={() => setGeneroSel("")}>Todos</Chip>
+                  <Chip activo={generoSel === "nino"} onClick={() => setGeneroSel(generoSel === "nino" ? "" : "nino")}>👦 Niño</Chip>
+                  <Chip activo={generoSel === "nina"} onClick={() => setGeneroSel(generoSel === "nina" ? "" : "nina")}>👧 Niña</Chip>
+                  <Chip activo={generoSel === "mami"} onClick={() => setGeneroSel(generoSel === "mami" ? "" : "mami")}>🤱 Mami</Chip>
+                  {favoritos.size > 0 && (
+                    <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
+                  )}
+                </div>
+              </div>
             )}
-            {favoritos.size > 0 && (
-              <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
-            )}
-            {lineas.map((l) => (
-              <Chip
-                key={l.id}
-                activo={lineaSel === l.id}
-                onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
-                color={l.color}
-              >
-                {l.icono} {l.nombre}
-              </Chip>
-            ))}
+            <div className="flex items-center gap-2">
+              {hayGeneros && (
+                <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-wide text-cacao/70">Qué</span>
+              )}
+              <div className={filaCls}>
+                <Chip
+                  activo={lineaSel === ""}
+                  onClick={() => { setLineaSel(""); setFiltros({}); }}
+                >
+                  Todo
+                </Chip>
+                {lineas.map((l) => (
+                  <Chip
+                    key={l.id}
+                    activo={lineaSel === l.id}
+                    onClick={() => { setLineaSel(lineaSel === l.id ? "" : l.id); setFiltros({}); }}
+                    color={l.color}
+                  >
+                    {l.icono} {l.nombre}
+                  </Chip>
+                ))}
+                {!hayGeneros && favoritos.size > 0 && (
+                  <Chip activo={soloFavoritos} onClick={() => setSoloFavoritos((v) => !v)}>❤️ {favoritos.size}</Chip>
+                )}
+              </div>
+            </div>
           </div>
         );
         const inputBusqueda = (
@@ -482,6 +519,16 @@ export function CatalogoCliente({
                     <span className="rounded-full bg-coral px-2 py-0.5 text-[10px] font-bold text-white">🏷️ Oferta</span>
                   )}
                 </div>
+                {/* Tallas disponibles, discretas abajo-derecha */}
+                {(() => {
+                  const ts = tallasDe(p);
+                  if (!ts.length) return null;
+                  return (
+                    <span className="pointer-events-none absolute bottom-1.5 right-1.5 max-w-[70%] truncate rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                      {ts.length > 3 ? `${ts.slice(0, 3).join(" · ")}…` : ts.join(" · ")}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="px-2.5 py-2">
                 <p className="truncate text-xs font-semibold text-texto">{p.nombre}</p>
@@ -498,7 +545,7 @@ export function CatalogoCliente({
             <button
               onClick={() => alternarFavorito(p.id)}
               aria-label={favoritos.has(p.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
-              className="absolute right-1.5 top-1.5 text-lg drop-shadow"
+              className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/30 text-sm text-white shadow-sm ring-1 ring-white/40 backdrop-blur-sm transition active:scale-90"
             >
               {favoritos.has(p.id) ? "❤️" : "🤍"}
             </button>
