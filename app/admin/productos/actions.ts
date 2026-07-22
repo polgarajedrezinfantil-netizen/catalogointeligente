@@ -179,6 +179,7 @@ export async function crearProductosImportados(
       nido_id: string | null;
       nido_nuevo: boolean;
       fotoPath: string | null;
+      atributos?: Record<string, unknown>;
     }[];
   };
   try {
@@ -223,7 +224,10 @@ export async function crearProductosImportados(
     linea_id: i.linea_id || null,
     nido_id: i.nido_nuevo ? nuevoNidoId : i.nido_id || null,
     fotos: i.fotoPath ? [i.fotoPath] : [],
-    atributos: {},
+    atributos:
+      i.atributos && typeof i.atributos === "object" && !Array.isArray(i.atributos)
+        ? i.atributos
+        : {},
     estado: "disponible" as const,
   }));
 

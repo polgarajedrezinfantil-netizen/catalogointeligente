@@ -133,7 +133,7 @@ export default async function ProductoCompartido({
                 alt={`${producto.nombre} ${i + 1}`}
                 fill
                 sizes="(max-width: 460px) 100vw, 460px"
-                className="object-cover"
+                className="object-contain"
                 priority={i === 0}
               />
             )}

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { urlFoto, BUCKET } from "@/lib/fotos";
-import type { Linea, Nido } from "@/lib/tipos";
+import type { Campo, Linea, Nido } from "@/lib/tipos";
 import { crearProductosImportados, type EstadoRapido } from "./actions";
 
 // pdf.js (lectura del PDF en el navegador). El worker se carga del CDN.
@@ -23,6 +23,7 @@ type Fila = {
   precio: string;
   stock: string;
   genero: string;
+  talla: string;
   linea_id: string;
   nido_sel: string; // id de nido, "__nuevo__" o ""
   nidoRaw: string;
@@ -31,10 +32,12 @@ type Fila = {
 export function ImportarPDF({
   tiendaId,
   lineas,
+  campos,
   nidos,
 }: {
   tiendaId: string;
   lineas: Linea[];
+  campos: Campo[];
   nidos: Nido[];
 }) {
   const router = useRouter();
@@ -45,7 +48,7 @@ export function ImportarPDF({
   const [guardando, setGuardando] = useState(false);
   const [estado, setEstado] = useState<EstadoRapido>(null);
 
-  function reconstruirLineas(tc: { items: { str: string; transform: number[] }[] }) {
+  function reconstruirLineas(tc: { items: { str: string; transform: number[]; height?: number }[] }) {
     const items = tc.items.filter((it) => it.str && it.str.trim());
     const filas: { y: number; items: typeof items }[] = [];
     for (const it of items) {
@@ -55,14 +58,16 @@ export function ImportarPDF({
       f.items.push(it);
     }
     filas.sort((a, b) => b.y - a.y);
-    return filas.map((f) =>
-      f.items
+    return filas.map((f) => ({
+      texto: f.items
         .sort((a, b) => a.transform[4] - b.transform[4])
         .map((i) => i.str)
         .join(" ")
         .replace(/\s+/g, " ")
         .trim(),
-    );
+      // Altura de letra de la fila (para detectar el título grande).
+      alto: Math.max(...f.items.map((i) => i.height || Math.abs(i.transform[3]) || 0)),
+    }));
   }
 
   function valorDe(lns: string[], re: RegExp) {
@@ -77,11 +82,30 @@ export function ImportarPDF({
     return val;
   }
 
-  function parsear(lns: string[]) {
-    const nombre = valorDe(lns, /nomn?bre/i);
+  // Si la plantilla no trae la fila "Nombre" (el nombre va como título grande),
+  // tomamos la fila con la letra más alta que no sea etiqueta, chip ni número.
+  function nombreTitulo(filas: { texto: string; alto: number }[]): string {
+    let mejor = "";
+    let mAlto = 0;
+    for (const f of filas) {
+      const t = f.texto.trim();
+      const n = norm(t);
+      if (t.length < 3) continue;
+      if (/(linea|nido|sexo|precio|stock|talla|nombre|producto|disponible)/.test(n)) continue;
+      if (lineas.some((l) => norm(l.nombre) === n)) continue; // chip de la línea
+      if (/^[\d$.,\s\-–—]+$/.test(t)) continue; // números o precios sueltos
+      if (f.alto > mAlto) { mAlto = f.alto; mejor = t; }
+    }
+    return mejor;
+  }
+
+  function parsear(filas: { texto: string; alto: number }[]) {
+    const lns = filas.map((f) => f.texto);
+    const nombre = valorDe(lns, /nomn?bre/i) || nombreTitulo(filas);
     const precioRaw = valorDe(lns, /precio/i);
     const stockRaw = valorDe(lns, /stock/i);
     const sexo = valorDe(lns, /sexo/i);
+    const talla = valorDe(lns, /talla/i);
     const nidoRaw = valorDe(lns, /nido/i);
     const lineaRaw = valorDe(lns, /l[ií]nea de venta/i);
 
@@ -96,7 +120,76 @@ export function ImportarPDF({
     const nidoMatch = nidos.find((n) => norm(n.nombre) === norm(nidoRaw));
     const nido_sel = norm(nidoRaw) === "nuevo" ? "__nuevo__" : nidoMatch ? nidoMatch.id : "";
 
-    return { nombre, precio, stock, genero, linea_id: linea?.id ?? "", nido_sel, nidoRaw };
+    return { nombre, precio, stock, genero, talla, linea_id: linea?.id ?? "", nido_sel, nidoRaw };
+  }
+
+  // Saca la foto ORIGINAL embebida en la página (la imagen más grande del PDF).
+  // Así la foto queda limpia y a toda resolución, sin importar el diseño de la
+  // plantilla. Si la página no trae imagen (o es muy chica), devolvemos null y
+  // se usa el recorte del lienzo como plan B.
+  async function extraerFotoEmbebida(
+    pdfjs: { OPS: { paintImageXObject: number; paintImageXObjectRepeat: number } },
+    page: {
+      getOperatorList(): Promise<{ fnArray: number[]; argsArray: unknown[][] }>;
+      objs: { get(n: string, cb: (o: unknown) => void): void };
+      commonObjs: { get(n: string, cb: (o: unknown) => void): void };
+    },
+  ): Promise<Blob | null> {
+    type ObjImagen = { width?: number; height?: number; bitmap?: ImageBitmap; data?: Uint8ClampedArray };
+    const ops = await page.getOperatorList();
+    const nombres: string[] = [];
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      if (
+        ops.fnArray[i] === pdfjs.OPS.paintImageXObject ||
+        ops.fnArray[i] === pdfjs.OPS.paintImageXObjectRepeat
+      ) {
+        nombres.push(String(ops.argsArray[i][0]));
+      }
+    }
+    let mejor: { width: number; height: number; bitmap?: ImageBitmap; data?: Uint8ClampedArray } | null = null;
+    for (const nombre of new Set(nombres)) {
+      const obj = (await new Promise<unknown>((res) => {
+        try {
+          const bolsa = nombre.startsWith("g_") ? page.commonObjs : page.objs;
+          bolsa.get(nombre, (o) => res(o));
+        } catch {
+          res(null);
+        }
+      })) as ObjImagen | null;
+      if (!obj || !obj.width || !obj.height) continue;
+      if (!mejor || obj.width * obj.height > mejor.width * mejor.height) {
+        mejor = { width: obj.width, height: obj.height, bitmap: obj.bitmap, data: obj.data };
+      }
+    }
+    // Menos de ~300x300 es un icono/logo de la plantilla, no la foto.
+    if (!mejor || mejor.width * mejor.height < 90000) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = mejor.width;
+    canvas.height = mejor.height;
+    const ctx = canvas.getContext("2d")!;
+    if (mejor.bitmap) {
+      ctx.drawImage(mejor.bitmap, 0, 0, mejor.width, mejor.height);
+    } else if (mejor.data) {
+      const n = mejor.width * mejor.height;
+      const rgba = new Uint8ClampedArray(n * 4);
+      if (mejor.data.length === n * 4) {
+        rgba.set(mejor.data);
+      } else if (mejor.data.length === n * 3) {
+        for (let p = 0, q = 0; q < rgba.length; p += 3, q += 4) {
+          rgba[q] = mejor.data[p];
+          rgba[q + 1] = mejor.data[p + 1];
+          rgba[q + 2] = mejor.data[p + 2];
+          rgba[q + 3] = 255;
+        }
+      } else {
+        return null;
+      }
+      ctx.putImageData(new ImageData(rgba, mejor.width, mejor.height), 0, 0);
+    } else {
+      return null;
+    }
+    return new Promise((res) => canvas.toBlob((b) => res(b), "image/jpeg", 0.9));
   }
 
   async function recortarFoto(canvas: HTMLCanvasElement): Promise<Blob | null> {
@@ -157,12 +250,12 @@ export function ImportarPDF({
         canvas.height = viewport.height;
         await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
 
-        const lns = reconstruirLineas(await page.getTextContent());
-        const campos = parsear(lns);
+        const datos = parsear(reconstruirLineas(await page.getTextContent()));
 
         let fotoPath: string | null = null;
         try {
-          const blob = await recortarFoto(canvas);
+          const blob =
+            (await extraerFotoEmbebida(pdfjs, page)) ?? (await recortarFoto(canvas));
           if (blob) {
             const path = `${tiendaId}/importados/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
             const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
@@ -172,7 +265,7 @@ export function ImportarPDF({
           /* sin foto si algo falla */
         }
 
-        nuevas.push({ key: `${Date.now()}-${n}-${Math.random()}`, fotoPath, ...campos });
+        nuevas.push({ key: `${Date.now()}-${n}-${Math.random()}`, fotoPath, ...datos });
       }
     }
     setFilas((f) => [...f, ...nuevas]);
@@ -184,6 +277,19 @@ export function ImportarPDF({
   }
 
   const hayNuevo = filas.some((r) => r.nido_sel === "__nuevo__");
+
+  // La talla se guarda en el campo de la línea que se llame Talla (o Número /
+  // Edad, según el rubro) para que salga en la tarjeta y el detalle.
+  function atributosDe(r: Fila): Record<string, string> {
+    const t = r.talla.trim();
+    if (!t || !r.linea_id) return {};
+    const deLinea = campos.filter((c) => c.linea_id === r.linea_id && !c.archivado);
+    const campo =
+      deLinea.find((c) => norm(c.nombre).includes("talla")) ??
+      deLinea.find((c) => norm(c.nombre).includes("numero")) ??
+      deLinea.find((c) => norm(c.nombre).includes("edad"));
+    return campo ? { [campo.id]: t } : {};
+  }
 
   async function crear() {
     setGuardando(true);
@@ -199,6 +305,7 @@ export function ImportarPDF({
         nido_id: r.nido_sel === "__nuevo__" || r.nido_sel === "" ? null : r.nido_sel,
         nido_nuevo: r.nido_sel === "__nuevo__",
         fotoPath: r.fotoPath,
+        atributos: atributosDe(r),
       })),
     };
     const fd = new FormData();
@@ -218,8 +325,9 @@ export function ImportarPDF({
       <summary className="cursor-pointer font-titulo text-lg text-coral">📥 Cargar productos (PDF)</summary>
       <p className="mb-3 mt-2 text-sm text-cacao">
         Sube uno o varios PDF (una prenda por página, con su foto y los datos
-        Línea/Nido/Sexo/Nombre/Precio/Stock). Leemos todo, lo revisas y se crean
-        como productos. Nido que diga <strong>nuevo</strong> crea un Nido nuevo.
+        Línea/Nido/Sexo/Nombre/Precio/Stock/Talla). Leemos todo, lo revisas y se
+        crean como productos; la foto se saca limpia y en tamaño original. Nido
+        que diga <strong>nuevo</strong> crea un Nido nuevo.
       </p>
 
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-verde-mielina px-4 py-2 text-sm font-bold text-white">
@@ -238,6 +346,7 @@ export function ImportarPDF({
               <input value={r.nombre} onChange={(e) => setCampo(r.key, "nombre", e.target.value)} placeholder="Nombre" className={`${inputCls} min-w-36 flex-1`} />
               <input value={r.precio} onChange={(e) => setCampo(r.key, "precio", e.target.value)} type="number" placeholder="Precio" className={`${inputCls} w-20`} />
               <input value={r.stock} onChange={(e) => setCampo(r.key, "stock", e.target.value)} type="number" placeholder="Stock" className={`${inputCls} w-16`} />
+              <input value={r.talla} onChange={(e) => setCampo(r.key, "talla", e.target.value)} placeholder="Talla" className={`${inputCls} w-20`} />
               <select value={r.genero} onChange={(e) => setCampo(r.key, "genero", e.target.value)} className={inputCls}>
                 <option value="">Sexo…</option>
                 <option value="nino">Niño</option>

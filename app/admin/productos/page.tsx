@@ -50,7 +50,7 @@ export default async function ProductosPage() {
       )}
 
       {/* Carga masiva por PDF */}
-      <ImportarPDF tiendaId={t} lineas={lineas} nidos={nidos} />
+      <ImportarPDF tiendaId={t} lineas={lineas} campos={campos} nidos={nidos} />
 
       {/* Alta individual */}
       <details className="rounded-[var(--radius-marca)]">

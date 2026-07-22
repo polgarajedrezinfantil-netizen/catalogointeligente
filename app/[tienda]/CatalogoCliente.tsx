@@ -1350,7 +1350,7 @@ function Carrusel({ fotos, nombre }: { fotos: string[]; nombre: string }) {
                 alt={`${nombre} ${i + 1}`}
                 fill
                 sizes="(max-width: 460px) 100vw, 460px"
-                className="object-cover"
+                className="object-contain"
               />
             )}
           </div>
