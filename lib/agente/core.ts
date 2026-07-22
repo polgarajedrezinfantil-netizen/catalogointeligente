@@ -76,6 +76,20 @@ export function construirSistema(cfg: ConfigTenant): string {
     .replace(/{{ciudad}}/g, cfg.origen?.ciudad || "PENDIENTE")
     .replace(/{{zonas}}/g, zonas);
 
+  // Fecha y hora locales de la tienda: sin esto el agente no puede aplicar
+  // reglas que dependen de la hora (ej. horarios de recolección hoy/mañana).
+  const ahora = new Intl.DateTimeFormat("es-MX", {
+    timeZone: cfg.origen?.zona_horaria || "America/Mexico_City",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date());
+  sistema += `\n\nAHORA MISMO: ${ahora} (hora local de la tienda). Úsala para "hoy"/"mañana" y para reglas que dependen de la hora; antes de las 12:00 pm es "mañana" (matutino), después es "tarde".`;
+
   if (cfg.tallas) sistema += `\n\nTALLAS DE ESTA TIENDA: ${cfg.tallas}`;
 
   const extra = (cfg.guardarrailes_extra || []).filter(

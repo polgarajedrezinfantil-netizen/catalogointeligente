@@ -74,7 +74,7 @@ export async function enviarReciboPago(
           <span style="font-weight:800;font-size:18px;color:${acento};">${money(Number(pedido.total))}</span>
         </div>
         <div style="margin-top:22px;background:#fcf6e8;border-radius:12px;padding:14px 16px;font-size:13px;color:#7a6a5e;">
-          Te contactaremos para coordinar la entrega/recolección de tu pedido. ¡Gracias por tu compra! 🧡
+          En el chat te confirmamos la entrega de tu pedido. ¡Gracias por tu compra! 🧡
         </div>
       </div>
     </div>

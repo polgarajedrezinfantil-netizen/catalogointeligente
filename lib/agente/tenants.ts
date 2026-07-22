@@ -16,6 +16,7 @@ export type ConfigTenant = {
   origen?: {
     ciudad: string;
     zonas_envio?: Record<string, string>;
+    zona_horaria?: string; // IANA, ej. "America/Ciudad_Juarez"
   };
   tallas?: string;
 };
