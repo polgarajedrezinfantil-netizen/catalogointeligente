@@ -130,7 +130,7 @@ export async function actualizarProducto(
 
 export type EstadoRapido = { ok: boolean; mensaje: string } | null;
 
-// Edición rápida desde la Vista Cliente: nombre, precio, oferta y ocultar.
+// Edición rápida desde la Vista Cliente: nombre, precio, oferta, talla y ocultar.
 export async function editarRapido(formData: FormData): Promise<EstadoRapido> {
   const tienda_id = await tiendaDelAdmin();
   const supabase = await createClient();
@@ -142,15 +142,36 @@ export async function editarRapido(formData: FormData): Promise<EstadoRapido> {
   const err = validar({ nombre, precio, costo: 0, oferta });
   if (err) return { ok: false, mensaje: err };
 
+  const patch: Record<string, unknown> = {
+    nombre,
+    precio,
+    precio_oferta: oferta,
+    oculto,
+    actualizado: new Date().toISOString(),
+  };
+
+  // Talla (si la Vista mandó el campo): se guarda dentro de atributos.
+  const tallaCampo = String(formData.get("talla_campo") ?? "");
+  if (tallaCampo) {
+    const [{ data: campo }, { data: prod }] = await Promise.all([
+      supabase.from("campos_linea").select("id").eq("id", tallaCampo).eq("tienda_id", tienda_id).single(),
+      supabase.from("productos").select("atributos").eq("id", id).eq("tienda_id", tienda_id).single(),
+    ]);
+    if (campo && prod) {
+      const atributos = { ...((prod.atributos as Record<string, unknown>) ?? {}) };
+      const vals = String(formData.get("talla") ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (vals.length === 0) delete atributos[campo.id];
+      else atributos[campo.id] = vals.length > 1 ? vals : vals[0];
+      patch.atributos = atributos;
+    }
+  }
+
   const { error } = await supabase
     .from("productos")
-    .update({
-      nombre,
-      precio,
-      precio_oferta: oferta,
-      oculto,
-      actualizado: new Date().toISOString(),
-    })
+    .update(patch)
     .eq("id", id)
     .eq("tienda_id", tienda_id);
   if (error) return { ok: false, mensaje: error.message };

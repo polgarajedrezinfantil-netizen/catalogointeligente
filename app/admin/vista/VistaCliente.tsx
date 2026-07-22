@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { urlFoto } from "@/lib/fotos";
 import { temaStyle, TEMA_DEFAULT, TOKENS_TEMA, type Tema } from "@/lib/tema";
-import type { Producto } from "@/lib/tipos";
+import type { Campo, Producto } from "@/lib/tipos";
 import { editarRapido, reordenarProductos, type EstadoRapido } from "../productos/actions";
 import { guardarCabeceraColores, type EstadoApariencia } from "../apariencia/actions";
 
@@ -23,6 +23,27 @@ function esNuevo(p: Producto) {
   return Date.now() - new Date(p.creado).getTime() < 14 * 24 * 60 * 60 * 1000;
 }
 
+const sinAcentos = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+// El campo que guarda la talla en la línea de la prenda (Talla/Número/Edad).
+function campoTallaDe(campos: Campo[], lineaId: string | null): Campo | null {
+  if (!lineaId) return null;
+  const deLinea = campos.filter((c) => c.linea_id === lineaId && !c.archivado);
+  return (
+    deLinea.find((c) => sinAcentos(c.nombre).includes("talla")) ??
+    deLinea.find((c) => sinAcentos(c.nombre).includes("numero")) ??
+    deLinea.find((c) => sinAcentos(c.nombre).includes("edad")) ??
+    null
+  );
+}
+
+function tallasDe(p: Producto, campo: Campo | null): string[] {
+  const v = campo ? p.atributos?.[campo.id] : null;
+  if (Array.isArray(v)) return v.map(String);
+  return v != null && v !== "" ? [String(v)] : [];
+}
+
 type Props = {
   marca: string;
   handle: string | null;
@@ -32,6 +53,7 @@ type Props = {
   simbolo: string;
   tema: Tema;
   productos: Producto[];
+  campos: Campo[];
 };
 
 export function VistaCliente(props: Props) {
@@ -188,6 +210,27 @@ export function VistaCliente(props: Props) {
                       <span className="rounded-full bg-cacao px-2 py-0.5 text-[10px] font-bold text-white">🚫 Oculto</span>
                     )}
                   </div>
+                  {/* Talla abajo-derecha, como la ve el cliente; si falta y la
+                      línea tiene campo de talla, un aviso para capturarla. */}
+                  {(() => {
+                    const ct = campoTallaDe(props.campos, p.linea_id);
+                    const ts = tallasDe(p, ct);
+                    if (ts.length) {
+                      return (
+                        <span className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-7 min-w-7 max-w-[85%] items-center justify-center whitespace-nowrap rounded-full bg-black/30 px-2 text-[10px] font-bold text-white ring-1 ring-white/40 backdrop-blur-sm">
+                          {ts.length > 3 ? `${ts.slice(0, 3).join(" · ")}…` : ts.join(" · ")}
+                        </span>
+                      );
+                    }
+                    if (editando && ct) {
+                      return (
+                        <span className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-7 items-center justify-center rounded-full border border-dashed border-white/80 bg-black/20 px-2 text-[10px] font-bold text-white backdrop-blur-sm">
+                          + talla
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div className="px-2.5 py-2">
                   <p className="truncate text-xs font-semibold text-texto">{p.nombre}</p>
@@ -242,6 +285,7 @@ export function VistaCliente(props: Props) {
         <EdicionRapida
           p={editar}
           simbolo={props.simbolo}
+          campoTalla={campoTallaDe(props.campos, editar.linea_id)}
           onGuardado={aplicarEdicion}
           onCerrar={() => setEditar(null)}
         />
@@ -359,17 +403,20 @@ function EdicionCabecera({
 function EdicionRapida({
   p,
   simbolo,
+  campoTalla,
   onGuardado,
   onCerrar,
 }: {
   p: Producto;
   simbolo: string;
+  campoTalla: Campo | null;
   onGuardado: (p: Producto) => void;
   onCerrar: () => void;
 }) {
   const [nombre, setNombre] = useState(p.nombre);
   const [precio, setPrecio] = useState(String(p.precio));
   const [oferta, setOferta] = useState(p.precio_oferta != null ? String(p.precio_oferta) : "");
+  const [talla, setTalla] = useState(tallasDe(p, campoTalla).join(", "));
   const [oculto, setOculto] = useState(p.oculto);
   const [pend, setPend] = useState(false);
   const [estado, setEstado] = useState<EstadoRapido>(null);
@@ -383,15 +430,28 @@ function EdicionRapida({
     fd.set("precio", precio);
     fd.set("precio_oferta", oferta);
     if (oculto) fd.set("oculto", "on");
+    if (campoTalla) {
+      fd.set("talla_campo", campoTalla.id);
+      fd.set("talla", talla);
+    }
     const res = await editarRapido(fd);
     setPend(false);
     if (res?.ok) {
+      // Refleja la talla también en la tarjeta local.
+      let atributos = p.atributos;
+      if (campoTalla) {
+        const vals = talla.split(",").map((s) => s.trim()).filter(Boolean);
+        atributos = { ...(p.atributos ?? {}) };
+        if (vals.length === 0) delete atributos[campoTalla.id];
+        else atributos[campoTalla.id] = vals.length > 1 ? vals : vals[0];
+      }
       onGuardado({
         ...p,
         nombre,
         precio: Number(precio),
         precio_oferta: oferta === "" ? null : Number(oferta),
         oculto,
+        atributos,
       });
     } else {
       setEstado(res);
@@ -423,6 +483,20 @@ function EdicionRapida({
             <input type="number" step="0.01" value={oferta} onChange={(e) => setOferta(e.target.value)} placeholder="—" className={`mt-1 w-full ${inputCls}`} />
           </label>
         </div>
+        {campoTalla && (
+          <label className="block text-sm font-semibold text-cacao">
+            {campoTalla.nombre}
+            <input
+              value={talla}
+              onChange={(e) => setTalla(e.target.value)}
+              placeholder="Ej. 6-9m (varias: 4, 6, 8)"
+              className={`mt-1 w-full ${inputCls}`}
+            />
+            <span className="mt-0.5 block text-xs font-normal">
+              Sale en el círculo de la tarjeta y en el detalle.
+            </span>
+          </label>
+        )}
         <label className="flex items-center gap-2 text-sm font-semibold text-texto">
           <input type="checkbox" checked={oculto} onChange={(e) => setOculto(e.target.checked)} className="accent-verde-mielina" />
           Ocultar del catálogo
