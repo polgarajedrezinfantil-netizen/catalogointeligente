@@ -1343,7 +1343,9 @@ function Carrusel({ fotos, nombre }: { fotos: string[]; nombre: string }) {
         className="flex snap-x snap-mandatory overflow-x-auto"
       >
         {lista.map((f, i) => (
-          <div key={i} className="relative aspect-square w-full shrink-0 snap-center bg-miel/30">
+          // Marco vertical 4:5 (como vienen las fotos del celular y del PDF):
+          // la foto se ve completa y lo más grande posible, sin recortarse.
+          <div key={i} className="relative aspect-[4/5] w-full shrink-0 snap-center bg-miel/30">
             {f && (
               <Image
                 src={urlFoto(f)}

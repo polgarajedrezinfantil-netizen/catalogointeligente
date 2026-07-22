@@ -126,7 +126,7 @@ export default async function ProductoCompartido({
       {/* Fotos */}
       <div className="flex snap-x snap-mandatory overflow-x-auto bg-crema">
         {(fotos.length ? fotos : [""]).map((f, i) => (
-          <div key={i} className="relative aspect-square w-full shrink-0 snap-center bg-miel/30">
+          <div key={i} className="relative aspect-[4/5] w-full shrink-0 snap-center bg-miel/30">
             {f && (
               <Image
                 src={urlFoto(f)}
