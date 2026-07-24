@@ -1,77 +1,157 @@
+import Link from "next/link";
 import { getPerfil } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Linea, Producto } from "@/lib/tipos";
-import { EnviarMensaje } from "./EnviarMensaje";
 import { atenderSolicitud } from "./actions";
 
-type Cliente = {
+export const dynamic = "force-dynamic";
+
+const POR_PAGINA = 25;
+
+// Una fila tal como la devuelve la RPC clientes_pagina (todo resuelto en SQL).
+type Fila = {
   celular: string;
   nombre: string | null;
   correo: string | null;
   ultima_visita: string;
+  etiquetas: string[];
+  tiene_nota: boolean;
+  no_molestar: boolean;
+  pedidos: number;
+  pagados: number;
+  pendientes: number;
+  gastado: number;
+  ultimo_pedido: string | null;
+  solicitudes: number;
+  intereses: string[];
+};
+type Pagina = { total: number; pagina: number; por: number; filas: Fila[] };
+
+const FILTROS = [
+  { clave: "todos", nombre: "Todos" },
+  { clave: "pendientes", nombre: "Con pedido pendiente" },
+  { clave: "compradores", nombre: "Compradores" },
+  { clave: "nuevos", nombre: "Sin comprar" },
+  { clave: "solicitudes", nombre: "Con solicitud" },
+  { clave: "dormidos", nombre: "Dormidos (+60 d)" },
+];
+
+const ORDENES: Record<string, string> = {
+  reciente: "Última visita",
+  gastado: "Gastado",
+  pedidos: "Pedidos",
+  nombre: "Nombre",
 };
 
-export default async function ClientesPage() {
+function dia(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "2-digit" });
+}
+
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; f?: string; o?: string; p?: string }>;
+}) {
   const perfil = await getPerfil();
   if (!perfil || !perfil.tienda_id) {
     return <p className="text-cacao">Esta sección es para administradores de una tienda.</p>;
   }
   const t = perfil.tienda_id;
-  const supabase = await createClient();
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim();
+  const filtro = FILTROS.some((f) => f.clave === sp.f) ? sp.f! : "todos";
+  const orden = sp.o && ORDENES[sp.o] ? sp.o : "reciente";
+  const pagina = Math.max(1, Number(sp.p) || 1);
 
-  const [
-    { data: clientesData },
-    { data: prodData },
-    { data: lineasData },
-    { data: apEv },
-    { data: verEv },
-    { data: solData },
-  ] = await Promise.all([
-    supabase.from("clientes").select("celular, nombre, correo, ultima_visita").eq("tienda_id", t).order("ultima_visita", { ascending: false }),
-    supabase.from("productos").select("id, linea_id").eq("tienda_id", t),
-    supabase.from("lineas_de_venta").select("*").eq("tienda_id", t),
-    supabase.from("eventos_apartado").select("celular, producto_id").eq("tienda_id", t).eq("tipo", "apartar"),
-    supabase.from("eventos_cliente").select("celular, ref_id").eq("tienda_id", t).eq("tipo", "abrir_producto"),
-    supabase.from("solicitudes_cliente").select("id, celular, texto, estado, creado").eq("tienda_id", t).order("creado", { ascending: false }),
+  const supabase = await createClient();
+  const [{ data: pagData, error }, { data: tienda }, { data: solData }] = await Promise.all([
+    supabase.rpc("clientes_pagina", {
+      p_tienda: t,
+      p_q: q || null,
+      p_filtro: filtro,
+      p_orden: orden,
+      p_pagina: pagina,
+      p_por: POR_PAGINA,
+    }),
+    supabase.from("tiendas").select("etiqueta_precio").eq("id", t).single(),
+    supabase
+      .from("solicitudes_cliente")
+      .select("id, celular, texto, creado")
+      .eq("tienda_id", t)
+      .eq("estado", "abierta")
+      .order("creado", { ascending: false })
+      .limit(6),
   ]);
 
-  const clientes = (clientesData ?? []) as Cliente[];
-  const productos = (prodData ?? []) as Pick<Producto, "id" | "linea_id">[];
-  const lineas = (lineasData ?? []) as Linea[];
-  const solicitudes = (solData ?? []) as { id: string; celular: string | null; texto: string; estado: string; creado: string }[];
+  const pag = (pagData ?? { total: 0, pagina: 1, por: POR_PAGINA, filas: [] }) as Pagina;
+  const simbolo = tienda?.etiqueta_precio ?? "$";
+  const solicitudes = (solData ?? []) as { id: string; celular: string | null; texto: string; creado: string }[];
+  const dinero = (n: number) => `${simbolo}${Number(n).toLocaleString("es-MX")}`;
 
-  const lineaDeProducto = (id: string | null) => productos.find((p) => p.id === id)?.linea_id ?? null;
-  const nombreLinea = (id: string | null) => lineas.find((l) => l.id === id)?.nombre ?? null;
+  // Conserva el estado de la vista al cambiar un solo parámetro.
+  const href = (cambios: Record<string, string | number | undefined>) => {
+    const p = new URLSearchParams();
+    const base = { q, f: filtro, o: orden, p: pagina, ...cambios };
+    if (base.q) p.set("q", String(base.q));
+    if (base.f && base.f !== "todos") p.set("f", String(base.f));
+    if (base.o && base.o !== "reciente") p.set("o", String(base.o));
+    if (base.p && Number(base.p) > 1) p.set("p", String(base.p));
+    const s = p.toString();
+    return `/admin/clientes${s ? `?${s}` : ""}`;
+  };
 
-  // Interés por cliente: cuenta líneas de productos que apartó o vio.
-  function interesDe(celular: string): string[] {
-    const cuenta = new Map<string, number>();
-    const sumar = (lineaId: string | null) => {
-      const nom = nombreLinea(lineaId);
-      if (nom) cuenta.set(nom, (cuenta.get(nom) ?? 0) + 1);
-    };
-    (apEv ?? []).filter((e) => e.celular === celular).forEach((e) => sumar(lineaDeProducto(e.producto_id)));
-    (verEv ?? []).filter((e) => e.celular === celular).forEach((e) => sumar(lineaDeProducto(e.ref_id)));
-    return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
-  }
-
-  const solDe = (celular: string) => solicitudes.filter((s) => s.celular === celular);
+  const desde = pag.total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
+  const hasta = Math.min(pagina * POR_PAGINA, pag.total);
+  const ultimaPagina = Math.max(1, Math.ceil(pag.total / POR_PAGINA));
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h1 className="font-titulo text-2xl text-durazno">Clientes</h1>
+    <div className="max-w-5xl space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="font-titulo text-2xl text-durazno">Clientes</h1>
+          <p className="text-sm text-cacao">
+            {pag.total.toLocaleString("es-MX")} {pag.total === 1 ? "cliente" : "clientes"}
+            {q && ` que coinciden con “${q}”`}. Toca uno para ver su ficha completa.
+          </p>
+        </div>
+        {/* Búsqueda: form GET, sin JavaScript. */}
+        <form action="/admin/clientes" className="flex gap-2">
+          {filtro !== "todos" && <input type="hidden" name="f" value={filtro} />}
+          {orden !== "reciente" && <input type="hidden" name="o" value={orden} />}
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Nombre, celular o correo…"
+            className="w-56 rounded-full border border-miel-borde bg-white px-3 py-1.5 text-sm"
+          />
+          <button className="rounded-full bg-durazno px-3 py-1.5 text-sm font-bold text-white">
+            Buscar
+          </button>
+          {q && (
+            <Link href={href({ q: "", p: 1 })} className="self-center text-sm text-cacao underline">
+              Limpiar
+            </Link>
+          )}
+        </form>
+      </div>
 
-      {/* Bandeja de solicitudes abiertas */}
-      <section className="rounded-[var(--radius-marca)] border border-dashed border-durazno bg-white p-4">
-        <h2 className="mb-2 font-titulo text-coral">Solicitudes abiertas</h2>
-        {solicitudes.filter((s) => s.estado === "abierta").length === 0 ? (
-          <p className="text-sm text-cacao">No hay solicitudes pendientes.</p>
-        ) : (
+      {/* Solicitudes abiertas: lo que alguien pidió y la tienda aún no atiende. */}
+      {solicitudes.length > 0 && (
+        <section className="rounded-[var(--radius-marca)] border border-dashed border-durazno bg-white p-4">
+          <h2 className="mb-2 font-titulo text-coral">Solicitudes abiertas</h2>
           <ul className="space-y-2">
-            {solicitudes.filter((s) => s.estado === "abierta").map((s) => (
+            {solicitudes.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
                 <span className="text-texto">
-                  “{s.texto}” {s.celular && <span className="text-cacao">· {s.celular}</span>}
+                  “{s.texto}”{" "}
+                  {s.celular && (
+                    <Link
+                      href={`/admin/clientes/${encodeURIComponent(s.celular)}`}
+                      className="text-cacao underline"
+                    >
+                      · {s.celular}
+                    </Link>
+                  )}
                 </span>
                 <form action={atenderSolicitud}>
                   <input type="hidden" name="solicitud_id" value={s.id} />
@@ -82,46 +162,169 @@ export default async function ClientesPage() {
               </li>
             ))}
           </ul>
-        )}
-      </section>
+          <Link href={href({ f: "solicitudes", p: 1 })} className="mt-2 inline-block text-xs text-cacao underline">
+            Ver todos los clientes con solicitud →
+          </Link>
+        </section>
+      )}
 
-      {/* Base de datos de clientes */}
-      <div className="space-y-3">
-        {clientes.length === 0 && <p className="text-cacao">Aún no hay clientes registrados.</p>}
-        {clientes.map((c) => {
-          const interes = interesDe(c.celular);
-          const sus = solDe(c.celular);
-          return (
-            <div key={c.celular} className="rounded-[var(--radius-marca)] border border-miel-borde bg-white p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-producto text-lg font-bold text-texto">{c.nombre ?? "Cliente"}</span>
-                <span className="text-sm text-cacao">{c.celular}</span>
-                {c.correo && <span className="text-sm text-cacao">· {c.correo}</span>}
-                <span className="ml-auto text-xs text-cacao">
-                  últ. visita {new Date(c.ultima_visita).toLocaleDateString("es-MX")}
-                </span>
-              </div>
-
-              {interes.length > 0 && (
-                <p className="mt-1 text-xs text-cacao">
-                  Interés:{" "}
-                  {interes.map((i) => (
-                    <span key={i} className="mr-1 rounded-full bg-miel px-2 py-0.5 text-[#7a5a14]">{i}</span>
-                  ))}
-                </p>
-              )}
-
-              {sus.length > 0 && (
-                <p className="mt-1 text-xs text-cacao">
-                  Ha buscado: {sus.map((s) => `“${s.texto}”`).join(", ")}
-                </p>
-              )}
-
-              <EnviarMensaje celular={c.celular} correo={c.correo} nombre={c.nombre ?? ""} />
-            </div>
-          );
-        })}
+      {/* Segmentos */}
+      <div className="flex flex-wrap gap-1.5">
+        {FILTROS.map((f) => (
+          <Link
+            key={f.clave}
+            href={href({ f: f.clave, p: 1 })}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              filtro === f.clave
+                ? "bg-durazno text-white"
+                : "border border-miel-borde bg-white text-cacao"
+            }`}
+          >
+            {f.nombre}
+          </Link>
+        ))}
       </div>
+
+      {error && (
+        <p className="rounded-xl bg-coral/15 p-3 text-sm text-coral">
+          No se pudo cargar la lista: {error.message}
+        </p>
+      )}
+
+      {pag.filas.length === 0 && !error && (
+        <p className="rounded-xl bg-miel/30 p-4 text-sm text-[#7a5a14]">
+          {q || filtro !== "todos"
+            ? "Ningún cliente coincide con esta búsqueda."
+            : "Aún no hay clientes registrados."}
+        </p>
+      )}
+
+      {pag.filas.length > 0 && (
+        <div className="overflow-hidden rounded-[var(--radius-marca)] border border-miel-borde bg-white">
+          <table className="w-full text-sm">
+            <thead className="border-b border-miel-borde bg-crema/60 text-left text-xs uppercase tracking-wide text-cacao">
+              <tr>
+                <th className="px-3 py-2 font-semibold">
+                  <Link href={href({ o: "nombre", p: 1 })}>Cliente</Link>
+                </th>
+                <th className="hidden px-3 py-2 font-semibold md:table-cell">Interés</th>
+                <th className="px-3 py-2 text-right font-semibold">
+                  <Link href={href({ o: "pedidos", p: 1 })}>Pedidos</Link>
+                </th>
+                <th className="px-3 py-2 text-right font-semibold">
+                  <Link href={href({ o: "gastado", p: 1 })}>Gastado</Link>
+                </th>
+                <th className="hidden px-3 py-2 text-right font-semibold sm:table-cell">
+                  <Link href={href({ o: "reciente", p: 1 })}>Últ. visita</Link>
+                </th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-miel-borde">
+              {pag.filas.map((c) => (
+                <tr key={c.celular} className="align-top hover:bg-crema/40">
+                  <td className="px-3 py-2">
+                    <Link
+                      href={`/admin/clientes/${encodeURIComponent(c.celular)}`}
+                      className="font-producto font-bold text-texto hover:text-coral"
+                    >
+                      {c.nombre ?? "Cliente"}
+                    </Link>
+                    <div className="text-xs text-cacao">{c.celular}</div>
+                    <div className="mt-0.5 flex flex-wrap gap-1">
+                      {c.pendientes > 0 && (
+                        <span className="rounded-full bg-durazno/25 px-1.5 py-0.5 text-[10px] font-bold text-[#7a3a26]">
+                          {c.pendientes} por cobrar
+                        </span>
+                      )}
+                      {c.solicitudes > 0 && (
+                        <span className="rounded-full bg-coral/15 px-1.5 py-0.5 text-[10px] font-bold text-coral">
+                          {c.solicitudes} solicitud{c.solicitudes === 1 ? "" : "es"}
+                        </span>
+                      )}
+                      {c.no_molestar && (
+                        <span className="rounded-full bg-cacao/15 px-1.5 py-0.5 text-[10px] font-bold text-cacao">
+                          No molestar
+                        </span>
+                      )}
+                      {c.tiene_nota && <span className="text-[10px] text-cacao">📝</span>}
+                      {c.etiquetas.map((e) => (
+                        <span
+                          key={e}
+                          className="rounded-full bg-verde-mielina/25 px-1.5 py-0.5 text-[10px] font-bold text-[#3f5a1c]"
+                        >
+                          {e}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="hidden px-3 py-2 md:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {c.intereses.length === 0 && <span className="text-xs text-cacao">—</span>}
+                      {c.intereses.map((i) => (
+                        <span key={i} className="rounded-full bg-miel px-1.5 py-0.5 text-[10px] text-[#7a5a14]">
+                          {i}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-texto">
+                    {c.pedidos === 0 ? <span className="text-cacao">—</span> : c.pedidos}
+                  </td>
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-[#7a5414]">
+                    {c.gastado > 0 ? dinero(c.gastado) : <span className="font-normal text-cacao">—</span>}
+                  </td>
+                  <td className="hidden px-3 py-2 text-right text-xs text-cacao sm:table-cell">
+                    {dia(c.ultima_visita)}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Link
+                      href={`/admin/clientes/${encodeURIComponent(c.celular)}`}
+                      className="rounded-full border border-miel-borde px-2 py-1 text-xs font-semibold text-cacao"
+                    >
+                      Ver
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Paginación */}
+      {pag.total > POR_PAGINA && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-cacao">
+            {desde}–{hasta} de {pag.total.toLocaleString("es-MX")}
+          </span>
+          <div className="flex gap-2">
+            {pagina > 1 ? (
+              <Link
+                href={href({ p: pagina - 1 })}
+                className="rounded-full border border-miel-borde bg-white px-3 py-1 font-semibold"
+              >
+                ← Anterior
+              </Link>
+            ) : (
+              <span className="rounded-full border border-miel-borde px-3 py-1 text-cacao/50">← Anterior</span>
+            )}
+            <span className="self-center text-xs text-cacao">
+              {pagina} / {ultimaPagina}
+            </span>
+            {pagina < ultimaPagina ? (
+              <Link
+                href={href({ p: pagina + 1 })}
+                className="rounded-full border border-miel-borde bg-white px-3 py-1 font-semibold"
+              >
+                Siguiente →
+              </Link>
+            ) : (
+              <span className="rounded-full border border-miel-borde px-3 py-1 text-cacao/50">Siguiente →</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

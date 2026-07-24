@@ -154,9 +154,13 @@ export type Pedido = {
   cupon: string | null;
   descuento: number;
   total: number;
-  estado: "pendiente" | "pagado" | "cancelado";
+  estado: "pendiente" | "pagado" | "cancelado" | "devuelto";
   creado: string;
   confirmado_en: string | null;
+  // Por qué se canceló / revirtió / devolvió, y cuándo (migración 0033).
+  motivo: string | null;
+  devuelto_en: string | null;
+  actualizado: string;
 };
 
 export type Campo = {
