@@ -7,6 +7,7 @@ import { publicKeyDe } from "@/lib/agente/mp-oauth";
 import { temaStyle } from "@/lib/tema";
 import { urlFoto } from "@/lib/fotos";
 import type { Tienda } from "@/lib/tipos";
+import MetaPixel from "@/components/MetaPixel";
 import { BrickPago } from "./BrickPago";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,9 @@ export default async function PagarPage({
       style={temaStyle(tienda.tema)}
       className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col bg-crema text-texto"
     >
+      {/* Píxel de Meta: provee fbq para disparar Purchase al aprobarse el pago */}
+      <MetaPixel pixelId={tienda.meta_pixel_id} />
+
       {/* Encabezado con la marca de la tienda */}
       <header className="flex items-center gap-2.5 border-b border-miel-borde bg-white/95 px-4 py-3">
         <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-tr from-sol via-durazno to-coral p-[2px]">
@@ -121,7 +125,13 @@ export default async function PagarPage({
             {publicKey && (
               <section className="rounded-2xl border border-miel-borde bg-white p-4">
                 <h2 className="mb-3 font-titulo text-lg text-coral">Paga con tarjeta</h2>
-                <BrickPago publicKey={publicKey} amount={total} pedidoId={p.id as string} />
+                <BrickPago
+                  publicKey={publicKey}
+                  amount={total}
+                  pedidoId={p.id as string}
+                  contentIds={items.map((it) => it.producto_id).filter(Boolean)}
+                  moneda={tienda.moneda || "MXN"}
+                />
               </section>
             )}
 

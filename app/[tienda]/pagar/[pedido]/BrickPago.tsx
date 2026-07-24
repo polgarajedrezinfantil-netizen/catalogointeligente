@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRef, useState } from "react";
 import Script from "next/script";
+import { trackPurchase } from "@/components/MetaPixel";
 
 declare global {
   interface Window {
@@ -14,12 +15,14 @@ type Props = {
   publicKey: string;
   amount: number;
   pedidoId: string;
+  contentIds?: string[];
+  moneda?: string;
 };
 
 // Formulario de pago de Mercado Pago EMBEBIDO (Payment Brick). Tokeniza la
 // tarjeta del lado cliente y manda el resultado a /api/agente/pago/procesar,
 // que crea el pago real con el token de la tienda.
-export function BrickPago({ publicKey, amount, pedidoId }: Props) {
+export function BrickPago({ publicKey, amount, pedidoId, contentIds = [], moneda = "MXN" }: Props) {
   const [estado, setEstado] = useState<"cargando" | "listo" | "ok" | "revision">("cargando");
   const [aviso, setAviso] = useState<string | null>(null);
   const montado = useRef(false);
@@ -52,6 +55,9 @@ export function BrickPago({ publicKey, amount, pedidoId }: Props) {
               .then((r) => r.json())
               .then((d) => {
                 if (d.status === "approved") {
+                  // Píxel de Meta: pago aprobado = Purchase. eventID = pedido
+                  // para deduplicar si luego se activa Conversions API.
+                  trackPurchase({ ids: contentIds, valor: amount, moneda, pedidoId });
                   setEstado("ok");
                   resolve();
                 } else if (d.status === "in_process" || d.status === "pending") {

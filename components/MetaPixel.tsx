@@ -15,10 +15,16 @@ declare global {
   }
 }
 
-/** Dispara un evento estándar de Meta (no-op si no hay píxel cargado). */
-export function metaTrack(evento: string, datos?: Record<string, unknown>) {
+/** Dispara un evento estándar de Meta (no-op si no hay píxel cargado).
+ * `opts` permite pasar eventID (para deduplicar con Conversions API). */
+export function metaTrack(
+  evento: string,
+  datos?: Record<string, unknown>,
+  opts?: { eventID: string },
+) {
   if (typeof window !== "undefined" && typeof window.fbq === "function") {
-    window.fbq("track", evento, datos || {});
+    if (opts) window.fbq("track", evento, datos || {}, opts);
+    else window.fbq("track", evento, datos || {});
   }
 }
 
@@ -42,6 +48,23 @@ export function trackAddToCart(p: { id: string; nombre?: string; precio?: number
     value: p.precio,
     currency: (p.moneda || "MXN").toUpperCase(),
   });
+}
+
+/** Purchase (al confirmarse un pago). value = total del pedido. */
+export function trackPurchase(p: { ids: string[]; valor: number; moneda?: string; pedidoId?: string }) {
+  metaTrack(
+    "Purchase",
+    {
+      content_ids: p.ids,
+      content_type: "product",
+      value: p.valor,
+      currency: (p.moneda || "MXN").toUpperCase(),
+      num_items: p.ids.length,
+    },
+    // eventID para deduplicar con el Purchase server-side (Conversions API),
+    // si se activa más adelante: mismo id de pedido = un solo evento.
+    p.pedidoId ? { eventID: `purchase_${p.pedidoId}` } : undefined,
+  );
 }
 
 type VC = { id: string; nombre?: string; precio?: number; moneda?: string };

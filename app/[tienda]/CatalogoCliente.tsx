@@ -7,7 +7,7 @@ import { urlFoto } from "@/lib/fotos";
 import { hexDeColor } from "@/lib/colores";
 import type { Campo, EstadoProducto, GuiaTallas, Linea, Nido, Producto } from "@/lib/tipos";
 import { datosClienteLocal } from "./CapturaCliente";
-import { trackAddToCart } from "@/components/MetaPixel";
+import { trackAddToCart, trackViewContent } from "@/components/MetaPixel";
 
 const ETIQUETA: Record<EstadoProducto, { txt: string; cls: string }> = {
   disponible: { txt: "Disponible", cls: "bg-verde-mielina text-white" },
@@ -201,6 +201,17 @@ export function CatalogoCliente({
   // Abre la ficha de un producto y registra la vista (para perfilar al cliente).
   function verProducto(id: string) {
     setDetalleId(id);
+    // Píxel de Meta: ver la ficha = ViewContent (content_ids = id del producto,
+    // el mismo del feed) → alimenta el retargeting dinámico del catálogo.
+    const prod = productos.find((p) => p.id === id);
+    if (prod) {
+      trackViewContent({
+        id: prod.id,
+        nombre: prod.nombre,
+        precio: precioEfectivo(prod),
+        moneda: (tienda as { moneda?: string }).moneda,
+      });
+    }
     supabase.rpc("registrar_evento_cliente", {
       p_tienda: tienda.id,
       p_celular: datosClienteLocal(tienda.id)?.celular ?? "",
