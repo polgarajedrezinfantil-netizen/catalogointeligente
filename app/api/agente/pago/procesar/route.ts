@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { accessTokenDe, comisionPct } from "@/lib/agente/mp-oauth";
 import { baseUrl } from "@/lib/agente/urls";
 import { enviarReciboPago } from "@/lib/agente/recibo";
+import { enviarPurchaseCAPI, cookiesFb } from "@/lib/agente/capi";
 
 // Procesa el pago del Payment Brick embebido (página de pago con marca).
 // El Brick tokeniza la tarjeta del lado cliente; aquí creamos el pago REAL con
@@ -99,12 +100,29 @@ export async function POST(req: Request) {
 
   // Pago aprobado → cerramos el pedido (idempotente). Respaldo: el webhook.
   if (mp.status === "approved") {
-    await supabase.rpc("pagar_pedido_agente", { p_pedido: pedidoId });
-    // Recibo por correo con la descripción del producto (best-effort).
-    try {
-      await enviarReciboPago(pedidoId, fd.payer?.email);
-    } catch (e) {
-      console.error("[pago/procesar] recibo:", e);
+    const { data: cierre } = await supabase.rpc("pagar_pedido_agente", { p_pedido: pedidoId });
+    // Solo en la PRIMERA aprobación (evita duplicar con el webhook).
+    if ((cierre as { ya_pagado?: boolean })?.ya_pagado === false) {
+      // Purchase server-side (Conversions API): redundancia con el píxel del
+      // navegador (mismo event_id → deduplicado) para máxima calidad de match.
+      const { fbp, fbc } = cookiesFb(req);
+      try {
+        await enviarPurchaseCAPI(pedidoId, {
+          fbp,
+          fbc,
+          ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+          userAgent: req.headers.get("user-agent") ?? undefined,
+          actionSource: "website",
+        });
+      } catch (e) {
+        console.error("[pago/procesar] capi:", e);
+      }
+      // Recibo por correo con la descripción del producto (best-effort).
+      try {
+        await enviarReciboPago(pedidoId, fd.payer?.email);
+      } catch (e) {
+        console.error("[pago/procesar] recibo:", e);
+      }
     }
   }
 

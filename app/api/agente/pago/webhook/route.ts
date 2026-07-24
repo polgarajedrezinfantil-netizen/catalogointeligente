@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { tokenCobro } from "@/lib/agente/mp-oauth";
 import { enviarReciboPago } from "@/lib/agente/recibo";
+import { enviarPurchaseCAPI } from "@/lib/agente/capi";
 
 // Webhook de Mercado Pago para el cobro del agente.
 //   - Valida la firma (x-signature) con MP_WEBHOOK_SECRET.
@@ -117,9 +118,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Recibo por correo solo en la PRIMERA vez que se marca pagado (evita duplicar
-  // con el que ya manda /procesar en el pago inmediato). Best-effort.
+  // Solo en la PRIMERA vez que se marca pagado (evita duplicar con /procesar).
   if (data && (data as { ya_pagado?: boolean }).ya_pagado === false) {
+    // Purchase server-side (Conversions API): cubre el checkout alojado de MP,
+    // donde el navegador no está en nuestra página. Sin cookies del browser,
+    // pero con el correo/teléfono del pedido para el match. Best-effort.
+    try {
+      await enviarPurchaseCAPI(pedidoId, { actionSource: "website" });
+    } catch (e) {
+      console.error("[pago/webhook] capi:", e);
+    }
     try {
       await enviarReciboPago(pedidoId, pago.payer?.email);
     } catch (e) {
