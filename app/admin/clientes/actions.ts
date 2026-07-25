@@ -76,6 +76,43 @@ export async function guardarEtiquetas(formData: FormData) {
   refrescarClientes();
 }
 
+// Agenda el próximo contacto. "dias" es un atajo (hoy, mañana, 3 días…) y lo
+// cuenta la base desde el día de la TIENDA: este servidor corre en UTC, así
+// que calcular aquí "mañana" le daría el día equivocado a media tarde.
+export async function guardarSeguimiento(formData: FormData) {
+  const perfil = await tiendaDelAdmin();
+
+  const crudo = String(formData.get("dias") ?? "").trim();
+  const dias = crudo === "" ? null : Number(crudo);
+  const fecha = String(formData.get("fecha") ?? "").trim() || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("guardar_seguimiento_cliente", {
+    p_tienda: perfil.tienda_id,
+    p_celular: String(formData.get("celular")),
+    p_fecha: fecha,
+    p_nota: String(formData.get("seguimiento_nota") ?? "") || null,
+    p_dias: Number.isFinite(dias as number) ? dias : null,
+  });
+  if (error) throw new Error(error.message);
+  refrescarClientes();
+}
+
+// Fija la etapa a mano. Vacío = volver al cálculo automático.
+export async function guardarEtapa(formData: FormData) {
+  const perfil = await tiendaDelAdmin();
+  const etapa = String(formData.get("etapa") ?? "").trim();
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("guardar_etapa_cliente", {
+    p_tienda: perfil.tienda_id,
+    p_celular: String(formData.get("celular")),
+    p_etapa: etapa || null,
+  });
+  if (error) throw new Error(error.message);
+  refrescarClientes();
+}
+
 // "No molestar": la tienda marca que este cliente no quiere seguimiento.
 export async function alternarNoMolestar(formData: FormData) {
   const perfil = await tiendaDelAdmin();
