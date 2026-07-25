@@ -220,6 +220,26 @@ export function CatalogoCliente({
     });
   }
 
+  // Registra la ENTRADA al catálogo (una vez por carga) para medir cuántos
+  // llegan y DE DÓNDE. Si viene de un anuncio (fbclid o utm_source), lo
+  // etiqueta como "anuncio:<fuente>"; así se ve en la base cuántos de los que
+  // hicieron clic realmente entraron al catálogo.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const utm = q.get("utm_source");
+    let fuente: string;
+    if (q.get("fbclid") || utm) fuente = `anuncio:${utm || "meta"}`;
+    else if (typeof document !== "undefined" && document.referrer && !document.referrer.includes(window.location.host)) fuente = "referido";
+    else fuente = "directo";
+    supabase.rpc("registrar_evento_cliente", {
+      p_tienda: tienda.id,
+      p_celular: datosClienteLocal(tienda.id)?.celular ?? "",
+      p_tipo: "entrar_catalogo",
+      p_ref: fuente,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Deep-link: si llegan con ?p=<id> (desde un producto compartido), ábrelo.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("p");
