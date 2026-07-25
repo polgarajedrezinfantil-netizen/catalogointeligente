@@ -360,6 +360,28 @@ export function CatalogoCliente({
     return arr; // "recomendado" = orden del servidor (más nuevos primero)
   }, [productos, lineaSel, nidoSel, filtros, busqueda, orden, soloFavoritos, favoritos, soloDisponibles, generoSel]);
 
+  // Render progresivo: pintamos pocos productos y cargamos más al hacer scroll.
+  // Antes se renderizaban los 90+ de golpe (HTML de ~440 KB); así el catálogo
+  // carga mucho más ligero y rápido en celular.
+  const LOTE = 12;
+  const [limite, setLimite] = useState(LOTE);
+  // Al cambiar filtros/búsqueda/orden, volvemos al primer lote.
+  useEffect(() => {
+    setLimite(LOTE);
+  }, [lineaSel, nidoSel, filtros, busqueda, orden, soloFavoritos, soloDisponibles, generoSel]);
+  // Sentinela al final de la rejilla: cuando se acerca, carga el siguiente lote.
+  const masRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = masRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) setLimite((l) => l + LOTE); },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visibles.length, limite]);
+
   // Los filtros de género (Niño/Niña/Mami) solo tienen sentido si la tienda
   // etiqueta productos por género (ropa infantil). En rubros como maquillaje
   // nadie los usa, así que se ocultan.
@@ -529,7 +551,7 @@ export function CatalogoCliente({
       )}
 
       <div className="grid grid-cols-2 gap-2.5">
-        {visibles.map((p) => (
+        {visibles.slice(0, limite).map((p) => (
           <div key={p.id} className="relative overflow-hidden rounded-2xl border border-miel-borde bg-white">
             <button onClick={() => verProducto(p.id)} className="block w-full text-left">
               <div className="relative aspect-[4/5] bg-crema">
@@ -587,6 +609,12 @@ export function CatalogoCliente({
           </div>
         ))}
       </div>
+      {/* Sentinela: carga el siguiente lote al acercarse (scroll infinito). */}
+      {limite < visibles.length && (
+        <div ref={masRef} className="flex justify-center py-6 text-sm text-cacao">
+          Cargando más productos…
+        </div>
+      )}
       {visibles.length === 0 && (
         <p className="py-8 text-center text-cacao">
           {soloFavoritos
